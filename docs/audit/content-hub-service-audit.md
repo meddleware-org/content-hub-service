@@ -498,7 +498,7 @@ ignored; contract tests 6/6 (routes, vectors, snapshot signature with `@mysten/s
 ### pre-mainnet
 - [x] restore drill of `content_hub` with the offsite copy — PLAT-M4 / DB-M9 (2026-10-30: in-cluster and offsite sets, 23 tables restored, roles reconverged)
 - [x] snapshot signer caps and hot-wallet float proved on testnet (2026-10-30: 2 SUI + 1 WAL float, funded by a separate key, token claims bound to epochs and size)
-- [ ] a publisher balance alert — implemented 2026-10-30 (worker 0.0.2 wallet watch; `ContentHubWallet*` vmalert rules, unit-tested; ADR-0007 §3, ADR-0008); 0.0.2 is deployed (balances read from the chain, 0 check failures); closes when the ntfy receiver is confirmed to have delivered an alert to the maintainer's phone (test alert sent 2026-10-30)
+- [x] a publisher balance alert — worker 0.0.2 wallet watch + `ContentHubWallet*` vmalert rules (unit-tested), deployed; ntfy delivery confirmed on the maintainer's phone with a test alert (2026-10-30) — ADR-0007 §3, ADR-0008
 - [x] personal-data inventory (`hub.users`) and deletion path written — DB-M10 (docs/PERSONAL_DATA.md, scripts/erase-person.sql, smoke step 9; 2026-10-30)
 - [ ] external review
 
