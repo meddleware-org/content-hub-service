@@ -35,7 +35,7 @@ size-guarded); restore drills passed 2026-10-30 from the in-cluster set and from
 **Token formats:** JWT (RS256), `Cf-Access-Jwt-Assertion` header
 **Signing / client credentials:** none held (verification only); the snapshot signing key (C8, a SOPS Secret)
 **Authorization model:** Keto `ContentHub:admin#member@<subject>`
-**Images:** quay.io/meddleware-org/content-hub-service (unpublished) · docker.io/meddleware/content-hub-service
+**Images:** quay.io/meddleware-org/content-hub-service (0.0.2) · docker.io/meddleware/content-hub-service
 **Base images:** `rust:1-slim@sha256:4df2ae8c…` (build) · `gcr.io/distroless/cc-debian13:nonroot@sha256:e792ab3d…` (runtime)
 **Runtime user:** 65532 (distroless nonroot)   **Runtime FS:** read-only; no volume
 **Deployed by:** `post-bootstrap/content-hub/` in the operator's instance repository (C9); digest from `config/images.yaml`
@@ -48,8 +48,8 @@ size-guarded); restore drills passed 2026-10-30 from the in-cluster set and from
 **Networks:** localnet · testnet (mainnet after the entity gate)
 **On-chain packages consumed:** none (a Walrus blob object, C8)
 **CLI tools:** none   **Networks targetable:** as above   **Key material:** the snapshot hot-wallet key, a SOPS Secret (C8)
-**Deployment status:** unpublished (0.0.1 local, Series C C4)
-**Review date:** 2026-10-25
+**Deployment status:** live on testnet (R2, 2026-10-30); 0.0.2 released, pinned by consensus (cosign valid) and deployed 2026-10-30
+**Review date:** 2026-10-25; 0.0.2 re-verified 2026-10-30 (wallet watch and snapshot-storage metrics, live on testnet; deployed)
 **Reviewer:** Internal review
 **Severity ceiling:** High — the service holds the operator's unreleased plans and posting credentials (by reference)
 and sends to public channels; a leak of internal data or a duplicate public post is its worst outcome
@@ -498,7 +498,7 @@ ignored; contract tests 6/6 (routes, vectors, snapshot signature with `@mysten/s
 ### pre-mainnet
 - [x] restore drill of `content_hub` with the offsite copy — PLAT-M4 / DB-M9 (2026-10-30: in-cluster and offsite sets, 23 tables restored, roles reconverged)
 - [x] snapshot signer caps and hot-wallet float proved on testnet (2026-10-30: 2 SUI + 1 WAL float, funded by a separate key, token claims bound to epochs and size)
-- [ ] a publisher balance alert (needs a Rust balance exporter and a platform alerting stack: neither exists; interim: a failed export Job and `fund-publisher.mjs --status`) — ADR-0007 §3
+- [ ] a publisher balance alert — implemented 2026-10-30 (worker 0.0.2 wallet watch; `ContentHubWallet*` vmalert rules, unit-tested; ADR-0007 §3, ADR-0008); 0.0.2 is deployed (balances read from the chain, 0 check failures); closes when the ntfy receiver is confirmed to have delivered an alert to the maintainer's phone (test alert sent 2026-10-30)
 - [x] personal-data inventory (`hub.users`) and deletion path written — DB-M10 (docs/PERSONAL_DATA.md, scripts/erase-person.sql, smoke step 9; 2026-10-30)
 - [ ] external review
 
