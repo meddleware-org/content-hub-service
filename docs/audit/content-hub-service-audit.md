@@ -28,8 +28,8 @@ no `TRUNCATE`) · read-only (`public`; `SELECT` on schema `public` only, read-on
 **Data classes:** public — the `public_v1_*` views; internal — every `hub` table; personal — `hub.users` (identity
 provider subject, display name); secret-adjacent — `platform_targets.secret_ref` (a NAME only), `delivery_attempts`
 (redacted excerpts)
-**Backups:** the tier's daily `pg_dump` (C9 adds the database to it); offsite copy required before real data is
-imported; no restore drill yet
+**Backups:** the tier's daily `pg_dump` (the database is in it since 2026-10-30) with an encrypted offsite copy on R2 (14 sets,
+size-guarded); restore drills passed 2026-10-30 from the in-cluster set and from the offsite set (6 databases, `content_hub` 23 tables)
 **Auth role(s):** resource server / verifier (Access JWT); authorization decision point (Keto) — C5
 **Identity provider:** Cloudflare Access (team JWKS); Keto read API for roles; no Hydra client
 **Token formats:** JWT (RS256), `Cf-Access-Jwt-Assertion` header
@@ -496,7 +496,7 @@ ignored; contract tests 6/6 (routes, vectors, snapshot signature with `@mysten/s
 - [x] image published, signed (cosign, keyless), pinned by consensus — 2026-10-30, R2
 
 ### pre-mainnet
-- [ ] restore drill of `content_hub` with the offsite copy — PLAT-M4 / DB-M9
+- [x] restore drill of `content_hub` with the offsite copy — PLAT-M4 / DB-M9 (2026-10-30: in-cluster and offsite sets, 23 tables restored, roles reconverged)
 - [ ] snapshot signer caps and hot-wallet float proved on testnet (done); the publisher balance alert wired in Grafana — ADR-0007 §3 (open)
 - [ ] personal-data inventory (`hub.users`) and deletion path written — DB-M10
 - [ ] external review
@@ -570,3 +570,4 @@ ignored; contract tests 6/6 (routes, vectors, snapshot signature with `@mysten/s
   with `@mysten/sui`, the console in Chromium against the real admin API) passes; the X manual-assist path needs the X
   definition enabled (documented in docs/PUBLISHING.md).
 - 2026-10-30 — R2: released (v0.0.1) and deployed on the cluster; F8 and F17 RESOLVED; the live publisher, the daily export and the egress policy verified. 193 Rust tests, the contract job green against the published client.
+- 2026-10-30 — offsite backup live and restore-drilled (in-cluster and from the encrypted R2 set); DB-M9 holds. The drill script now asks for the offsite passphrase once.
