@@ -497,7 +497,8 @@ ignored; contract tests 6/6 (routes, vectors, snapshot signature with `@mysten/s
 
 ### pre-mainnet
 - [x] restore drill of `content_hub` with the offsite copy — PLAT-M4 / DB-M9 (2026-10-30: in-cluster and offsite sets, 23 tables restored, roles reconverged)
-- [ ] snapshot signer caps and hot-wallet float proved on testnet (done); the publisher balance alert wired in Grafana — ADR-0007 §3 (open)
+- [x] snapshot signer caps and hot-wallet float proved on testnet (2026-10-30: 2 SUI + 1 WAL float, funded by a separate key, token claims bound to epochs and size)
+- [ ] a publisher balance alert (needs a Rust balance exporter and a platform alerting stack: neither exists; interim: a failed export Job and `fund-publisher.mjs --status`) — ADR-0007 §3
 - [x] personal-data inventory (`hub.users`) and deletion path written — DB-M10 (docs/PERSONAL_DATA.md, scripts/erase-person.sql, smoke step 9; 2026-10-30)
 - [ ] external review
 
