@@ -228,12 +228,13 @@ other database, read-only role sees nothing of `hub`, convergence) and the local
 service on roles made by the real `provision.sh`.
 
 ### F8 — The contract job installs a client that is not published yet
-**Severity:** Low   **Disposition:** DEFERRED
+**Severity:** Low   **Disposition:** RESOLVED (2026-10-30, R2)
 **Where:** `.github/workflows/rust-ci.yml` (`contract`), `tests/contract/package.json` (no lockfile yet)
 **Issue:** `@meddleware/content-hub-client` 0.0.1 is unpublished, so `npm ci` in the contract job cannot run.
 **Impact:** CI's contract job fails until the client is published.
 **Remediation / evidence:** R2 order: publish the client first, then generate `tests/contract/package-lock.json` and
 push the service. The test itself passed locally against a packed client (3/3).
+Done: the client is on npm (0.0.1, with provenance), the lockfile exists, and the contract job is green on `main` and on the tag.
 
 ### F9 — Platform facts corrected against the research brief
 **Severity:** Info   **Disposition:** RESOLVED
@@ -322,13 +323,16 @@ the export Job only the publisher, everyone PostgreSQL and DNS; proved on the re
 `route_exposure.py`. Live enforcement is checked in R2 (Hubble, no drops expected).
 
 ### F17 — Facts only the first testnet store can confirm
-**Severity:** Low   **Disposition:** DEFERRED
+**Severity:** Low   **Disposition:** RESOLVED (2026-10-30, R2)
 **Where:** `publish::blob` (token claims), `post-bootstrap/_prepared/walrus-storage-publisher` (instance repository)
 **Issue:** The publisher's acceptance of the hub's token (`exp`, `iat`, `jti`, exact `epochs` and `size`), the reply shape
 for `newlyCreated`/`alreadyCertified`, and `--jwt-verify-upload` are taken from Mysten's source and CLI help, proved against
 a mock only (ADR-0007 OQ1).
 **Impact:** The first real export could be refused; nothing is recorded in that case (I21).
-**Remediation / evidence:** R2 step 6 of the publisher README: a first testnet store, then `--jwt-verify-upload`.
+**Remediation / evidence:** R2 (2026-10-30): the first store through the real publisher on Walrus testnet succeeded with the hub's token;
+the blob fetched from the public aggregator hashed to the published SHA-256 and its signature verified with `@mysten/sui` to the published
+signer; `--jwt-verify-upload` was then enabled and a second real store (the renewal path) succeeded under it; the reply shape
+(`newlyCreated`/`alreadyCertified`) parsed. The daily export is on.
 
 ### F18 — The publisher client may call only its configured host
 **Severity:** Info   **Disposition:** Positive
@@ -467,7 +471,7 @@ ignored; contract tests 6/6 (routes, vectors, snapshot signature with `@mysten/s
 | Access JWT against the real team JWKS | test JWKS and a static key (C5) | R2 | F5 |
 | SSRF check on resolved addresses | yes (`publish::net` tests) | — | F10 |
 | Real platform sends | mocks only (D85) | the first live send per platform | F15 |
-| Storing a blob through the publisher | mock publisher | the first testnet store (R2) | F17 |
+| Storing a blob through the publisher | mock publisher, then the live testnet publisher (2026-10-30) | — | F17 |
 | The egress FQDN policy | rendered and checked (C9) | live enforcement in R2 | F16 |
 | Platform sends | mocks (C6) | optional sandbox channels | — |
 
@@ -484,16 +488,16 @@ ignored; contract tests 6/6 (routes, vectors, snapshot signature with `@mysten/s
 - [x] `SECURITY.md` present
 - [x] public responses can come only from public views (role-enforced), columns pinned — F1
 - [x] the tier's `writer` record — F7 (2026-10-29, C9)
-- [ ] CI green on GitHub, including the contract job — F8 (R2)
+- [x] CI green on GitHub, including the contract job against the published client — F8 (2026-10-30, R2)
 - [x] manifests do not set `ALLOW_INSECURE_DATABASE`; namespace default-deny with the worker's FQDN allowlist — F16 (2026-10-29, C9)
 - [x] a local end-to-end dry run of the image on tier-provisioned roles, nothing sent — C9 (2026-10-29)
-- [ ] the manifests applied and the FQDN policy observed enforcing (Hubble) — R2
+- [x] the manifests applied and the FQDN policy observed enforcing (a worker-labelled probe pod reached Discord and Telegram and was blocked from example.org and github.com) — 2026-10-30, R2
 - [ ] the first live send per platform to a private target, before any public one — F15 (go-live)
-- [ ] image published, signed, pinned — R2
+- [x] image published, signed (cosign, keyless), pinned by consensus — 2026-10-30, R2
 
 ### pre-mainnet
 - [ ] restore drill of `content_hub` with the offsite copy — PLAT-M4 / DB-M9
-- [ ] snapshot signer caps and hot-wallet float proved on testnet; the balance alert wired — F17 (R2), ADR-0007 §3
+- [ ] snapshot signer caps and hot-wallet float proved on testnet (done); the publisher balance alert wired in Grafana — ADR-0007 §3 (open)
 - [ ] personal-data inventory (`hub.users`) and deletion path written — DB-M10
 - [ ] external review
 
@@ -565,3 +569,4 @@ ignored; contract tests 6/6 (routes, vectors, snapshot signature with `@mysten/s
   provisioner, migrate/seed/admin/public/worker, a mock Walrus publisher enforcing the token claims, the snapshot verified
   with `@mysten/sui`, the console in Chromium against the real admin API) passes; the X manual-assist path needs the X
   definition enabled (documented in docs/PUBLISHING.md).
+- 2026-10-30 — R2: released (v0.0.1) and deployed on the cluster; F8 and F17 RESOLVED; the live publisher, the daily export and the egress policy verified. 193 Rust tests, the contract job green against the published client.
