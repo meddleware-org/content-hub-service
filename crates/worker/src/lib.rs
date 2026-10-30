@@ -20,6 +20,7 @@
 pub mod alerts;
 pub mod metrics;
 pub mod snapshot;
+pub mod watch;
 
 use std::sync::Arc;
 use std::time::Duration;

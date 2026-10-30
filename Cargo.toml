@@ -3,7 +3,7 @@ resolver = "3"
 members = ["crates/core", "crates/store", "crates/publish", "crates/api", "crates/worker", "crates/cli"]
 
 [workspace.package]
-version = "0.0.1"
+version = "0.0.2"
 edition = "2024"
 # The dependency graph's floor (sqlx 0.9 needs 1.94; checked in CI by the `msrv` job).
 rust-version = "1.94"

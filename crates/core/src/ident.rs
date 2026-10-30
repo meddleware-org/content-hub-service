@@ -31,9 +31,30 @@ pub fn is_secret_ref(s: &str) -> bool {
     !b.is_empty() && b.len() <= 55 && b.iter().all(|c| c.is_ascii_uppercase() || c.is_ascii_digit() || *c == b'_')
 }
 
+/// A Sui address as the chain writes it: `0x` and exactly 64 hexadecimal digits.
+pub fn is_sui_address(s: &str) -> bool {
+    s.strip_prefix("0x").is_some_and(|h| h.len() == 64 && h.bytes().all(|c| c.is_ascii_hexdigit()))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn sui_addresses_have_a_prefix_and_sixty_four_hex_digits() {
+        assert!(is_sui_address(&format!("0x{}", "ab".repeat(32))));
+        assert!(is_sui_address(&format!("0x{}", "AB".repeat(32))));
+        for bad in [
+            "",
+            "0x",
+            "0x12",
+            &format!("ab{}", "ab".repeat(32)),
+            &format!("0x{}", "zz".repeat(32)),
+            &format!("0x{}", "ab".repeat(33)),
+        ] {
+            assert!(!is_sui_address(bad), "{bad}");
+        }
+    }
 
     /// The public seed schema states the same shapes (it is what operators validate their seed against).
     #[test]

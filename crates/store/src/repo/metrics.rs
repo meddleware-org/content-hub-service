@@ -25,6 +25,25 @@ pub struct PlatformSpend {
     pub used_usd_micros: i64,
 }
 
+/// When a network's latest snapshot was generated and until when its Walrus storage is estimated to last.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SnapshotStat {
+    pub network: String,
+    pub generated_at: chrono::DateTime<chrono::Utc>,
+    pub expires_at: Option<chrono::DateTime<chrono::Utc>>,
+}
+
+/// The latest snapshot of every network (none before the first export).
+pub async fn latest_snapshots(conn: &mut PgConnection) -> Result<Vec<SnapshotStat>> {
+    Ok(sqlx::query_as!(
+        SnapshotStat,
+        r#"SELECT DISTINCT ON (network) network, generated_at, expires_at
+             FROM hub.snapshots ORDER BY network, generated_at DESC, id DESC"#
+    )
+    .fetch_all(conn)
+    .await?)
+}
+
 /// Instances per status (every status, zero included).
 pub async fn instances_by_status(conn: &mut PgConnection) -> Result<Vec<StatusCount>> {
     Ok(sqlx::query_as!(

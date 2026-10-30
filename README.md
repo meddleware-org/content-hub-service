@@ -4,7 +4,7 @@ The backend of the content hub: canonical posts, a public roadmap, and a publish
 platform and tracks every publication, automated or manual. One Rust binary with six subcommands, PostgreSQL for
 state. Design: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
-**Status (0.0.1):** the admin API (Cloudflare Access + Keto, CSRF, cursor pagination, audit log, spend ceilings),
+**Status (0.0.2):** the admin API (Cloudflare Access + Keto, CSRF, cursor pagination, audit log, spend ceilings),
 the public API (roadmap for people and for agents, JSON Feed and RSS, OpenAPI, `llms.txt`/`robots.txt`, ETag
 caching), migrations, the seed import, and the text engine (rendering, counting, segmentation, intent links) that
 validates every payload before it is queued, and the publishing worker (Discord, Telegram, Bluesky, Mastodon, the
@@ -60,6 +60,9 @@ snapshot (canonical JSON, a Sui personal-message signature, stored on Walrus). O
 | `SPEND_CEILING_TOTAL_USD_MICROS`, `SPEND_CEILING_PER_PLATFORM_USD_MICROS` | `0` | the same ceilings as `admin` (alert levels, metrics) |
 | `ALERT_DISCORD_WEBHOOK_URL` | unset | an internal Discord channel for the optional summary of failures and spend levels |
 | `ALERT_INTERVAL_SECONDS` | `3600` | at most one summary per interval (300 to 86400) |
+| `WATCH_WALLETS` | unset | `label=0xaddress,…` (at most ten public addresses): their SUI and WAL balances are checked and exposed on `/metrics` (docs/MONITORING.md) |
+| `SUI_GRAPHQL_URL` | — (required with `WATCH_WALLETS`) | a Sui GraphQL endpoint, https, e.g. `https://graphql.testnet.sui.io/graphql` |
+| `WATCH_INTERVAL_SECONDS` | `300` | how often the balances are checked (60 to 3600) |
 
 `export-snapshot` reads `SNAPSHOT_SIGNER_SEED` (required), `SNAPSHOT_NETWORK` (default `testnet`; mainnet needs
 `SNAPSHOT_ALLOW_MAINNET=1`), `SNAPSHOT_EPOCHS`, `SNAPSHOT_MIN_INTERVAL_HOURS`, `SNAPSHOT_RENEW_MARGIN_DAYS`,

@@ -1,6 +1,14 @@
 # Changelog
 
-## 0.0.1 — unreleased
+## 0.0.2 — unreleased
+
+- Worker metrics: the latest snapshot's generation time and estimated Walrus storage end per network, so a failing export or
+  a spent float shows days before the record expires.
+- The wallet watch: `WATCH_WALLETS`, `SUI_GRAPHQL_URL`, `WATCH_INTERVAL_SECONDS` expose the SUI and WAL balances of public
+  addresses (one polling task, last good reading kept, time of the last success and a failure counter alongside).
+- docs/MONITORING.md lists every metric and the alerts worth making.
+
+## 0.0.1 — released 2026-10-30
 
 - Schema version 1 (`crates/store/migrations/0001_init.sql`): 18 tables in schema `hub`, four public views in
   `public`, append-only audit log and spend ledger.

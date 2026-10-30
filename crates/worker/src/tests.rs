@@ -511,6 +511,24 @@ async fn metrics_alerts_and_instance_limits() {
         assert!(text.contains(want), "{want}\n{text}");
     }
 
+    // No snapshot yet: the snapshot gauges have no samples (an alert on absence is the monitoring stack's job).
+    assert!(!text.contains("content_hub_snapshot_generated_timestamp_seconds{"), "{text}");
+    exec(
+        &e.pool,
+        "INSERT INTO hub.snapshots (network, generated_at, schema_version, sha256, byte_size, signature, signer_address, blob_id, epochs, expires_at)
+         VALUES ('testnet', '2026-10-30T10:00:00Z', 1, repeat('a', 64), 100, 'sig', '0x' || repeat('b', 64), 'blob', 30, '2026-11-29T10:00:00Z'),
+                ('testnet', '2026-10-31T10:00:00Z', 1, repeat('c', 64), 100, 'sig', '0x' || repeat('b', 64), 'blob', 30, '2026-11-30T10:00:00Z')",
+    )
+    .await;
+    let text = metrics::render(&e.pool, &cfg).await.expect("metrics");
+    // The LATEST snapshot of the network: 2026-10-31T10:00:00Z = 1793440800, expiring 2026-11-30T10:00:00Z = 1796032800.
+    for want in [
+        "content_hub_snapshot_generated_timestamp_seconds{network=\"testnet\"} 1793440800",
+        "content_hub_snapshot_storage_expires_timestamp_seconds{network=\"testnet\"} 1796032800",
+    ] {
+        assert!(text.contains(want), "{want}\n{text}");
+    }
+
     // One summary, then nothing until the interval passes.
     let (base, m) = mock(&e.pool, |_| (204, String::new(), Duration::ZERO)).await;
     let a = alerts::AlertConfig {

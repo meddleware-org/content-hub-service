@@ -309,15 +309,36 @@ fn worker_config() -> Result<content_hub_worker::WorkerConfig, CliError> {
     })
 }
 
+/// The wallet watch (`WATCH_WALLETS=label=0xaddress,...`, `SUI_GRAPHQL_URL`, `WATCH_INTERVAL_SECONDS`): none unless
+/// wallets are listed. Public addresses only.
+fn watch_config() -> Result<Option<content_hub_worker::watch::WatchConfig>, CliError> {
+    let Some(list) = env("WATCH_WALLETS").filter(|v| !v.trim().is_empty()) else { return Ok(None) };
+    let wallets = content_hub_worker::watch::parse_wallets(&list)
+        .map_err(|e| CliError::Setting(format!("WATCH_WALLETS: {e}")))?;
+    if wallets.is_empty() {
+        return Ok(None);
+    }
+    let graphql_url = required("SUI_GRAPHQL_URL")?;
+    https("SUI_GRAPHQL_URL", &graphql_url)?;
+    Ok(Some(content_hub_worker::watch::WatchConfig {
+        graphql_url,
+        wallets,
+        every: std::time::Duration::from_secs(bounded("WATCH_INTERVAL_SECONDS", 300, 60, 3600)?),
+    }))
+}
+
 /// The publishing worker and its probe/metrics server; both stop on SIGTERM, after the send in progress.
 async fn worker() -> Result<(), CliError> {
     let cfg = worker_config()?;
     tracing::info!(live = cfg.live, production = cfg.production, alerts = cfg.alerts.is_some(), "worker configuration");
     let db = DatabaseSettings::from_env(env)?.lazy_pool(pool_size()?, Access::ReadWrite)?;
     let http = content_hub_publish::Http::new().map_err(CliError::Setting)?;
+    let watch_cfg = watch_config()?;
+    let watch = Arc::new(content_hub_worker::watch::Watch::new(watch_cfg.as_ref().map_or(&[][..], |c| &c.wallets)));
     let metrics = content_hub_worker::metrics::router(content_hub_worker::metrics::MetricsState {
         db: db.clone(),
         cfg: Arc::new(cfg.clone()),
+        watch: watch.clone(),
     });
     let w = Arc::new(content_hub_worker::Worker {
         db,
@@ -327,6 +348,14 @@ async fn worker() -> Result<(), CliError> {
         base_override: None,
     });
     let (stop_tx, stop_rx) = tokio::sync::watch::channel(false);
+    let watcher = match watch_cfg {
+        Some(c) => {
+            tracing::info!(wallets = c.wallets.len(), every_s = c.every.as_secs(), "watching wallet balances");
+            let http = content_hub_publish::Http::new().map_err(CliError::Setting)?;
+            Some(tokio::spawn(content_hub_worker::watch::run(http, c, watch, stop_rx.clone())))
+        }
+        None => None,
+    };
     let looped = tokio::spawn(w.run(stop_rx));
     let addr = listen_addr()?;
     let listener = TcpListener::bind(addr).await?;
@@ -338,6 +367,9 @@ async fn worker() -> Result<(), CliError> {
         })
         .await?;
     let _ = looped.await;
+    if let Some(h) = watcher {
+        let _ = h.await;
+    }
     Ok(())
 }
 

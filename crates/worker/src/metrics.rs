@@ -21,6 +21,8 @@ use crate::WorkerConfig;
 pub struct MetricsState {
     pub db: PgPool,
     pub cfg: Arc<WorkerConfig>,
+    /// The wallet readings (empty when no wallet is watched).
+    pub watch: Arc<crate::watch::Watch>,
 }
 
 pub fn router(state: MetricsState) -> Router {
@@ -34,7 +36,10 @@ pub fn router(state: MetricsState) -> Router {
 
 async fn metrics(State(s): State<MetricsState>) -> Response {
     match render(&s.db, &s.cfg).await {
-        Ok(text) => ([(header::CONTENT_TYPE, "text/plain; version=0.0.4; charset=utf-8")], text).into_response(),
+        Ok(mut text) => {
+            text.push_str(&s.watch.render());
+            ([(header::CONTENT_TYPE, "text/plain; version=0.0.4; charset=utf-8")], text).into_response()
+        }
         Err(e) => {
             tracing::error!(error = %e, "metrics");
             StatusCode::SERVICE_UNAVAILABLE.into_response()
@@ -103,6 +108,27 @@ pub async fn render(db: &PgPool, cfg: &WorkerConfig) -> Result<String, content_h
     );
     family(&mut o, "content_hub_spend_cap_usd_micros", "gauge", "The monthly cap that applies, by scope.", &caps);
     let paused = i64::from(settings::paused(&mut c).await?);
+    let snapshots = m::latest_snapshots(&mut c).await?;
+    let generated: Vec<_> =
+        snapshots.iter().map(|s| (format!("{{network=\"{}\"}}", s.network), s.generated_at.timestamp())).collect();
+    family(
+        &mut o,
+        "content_hub_snapshot_generated_timestamp_seconds",
+        "gauge",
+        "Unix time the latest signed roadmap snapshot was generated, by network (absent before the first export).",
+        &generated,
+    );
+    let expires: Vec<_> = snapshots
+        .iter()
+        .filter_map(|s| s.expires_at.map(|t| (format!("{{network=\"{}\"}}", s.network), t.timestamp())))
+        .collect();
+    family(
+        &mut o,
+        "content_hub_snapshot_storage_expires_timestamp_seconds",
+        "gauge",
+        "Unix time the latest snapshot's Walrus storage is estimated to end (the export renews it well before).",
+        &expires,
+    );
     family(
         &mut o,
         "content_hub_publishing_paused",
