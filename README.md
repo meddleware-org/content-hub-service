@@ -10,7 +10,7 @@ caching), migrations, the seed import, and the text engine (rendering, counting,
 validates every payload before it is queued, and the publishing worker (Discord, Telegram, Bluesky, Mastodon, the
 owned feed; X built but disabled) with at-most-once sends, dry runs by default and spend caps, and the signed roadmap
 snapshot (canonical JSON, a Sui personal-message signature, stored on Walrus). Operators:
-[docs/PUBLISHING.md](docs/PUBLISHING.md), [docs/SNAPSHOT.md](docs/SNAPSHOT.md).
+[docs/PUBLISHING.md](docs/PUBLISHING.md), [docs/SNAPSHOT.md](docs/SNAPSHOT.md), [docs/PERSONAL_DATA.md](docs/PERSONAL_DATA.md).
 
 ## Subcommands
 

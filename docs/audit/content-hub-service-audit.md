@@ -498,7 +498,7 @@ ignored; contract tests 6/6 (routes, vectors, snapshot signature with `@mysten/s
 ### pre-mainnet
 - [x] restore drill of `content_hub` with the offsite copy — PLAT-M4 / DB-M9 (2026-10-30: in-cluster and offsite sets, 23 tables restored, roles reconverged)
 - [ ] snapshot signer caps and hot-wallet float proved on testnet (done); the publisher balance alert wired in Grafana — ADR-0007 §3 (open)
-- [ ] personal-data inventory (`hub.users`) and deletion path written — DB-M10
+- [x] personal-data inventory (`hub.users`) and deletion path written — DB-M10 (docs/PERSONAL_DATA.md, scripts/erase-person.sql, smoke step 9; 2026-10-30)
 - [ ] external review
 
 ## Cross-project themes
@@ -571,3 +571,4 @@ ignored; contract tests 6/6 (routes, vectors, snapshot signature with `@mysten/s
   definition enabled (documented in docs/PUBLISHING.md).
 - 2026-10-30 — R2: released (v0.0.1) and deployed on the cluster; F8 and F17 RESOLVED; the live publisher, the daily export and the egress policy verified. 193 Rust tests, the contract job green against the published client.
 - 2026-10-30 — offsite backup live and restore-drilled (in-cluster and from the encrypted R2 set); DB-M9 holds. The drill script now asks for the offsite passphrase once.
+- 2026-10-30 — DB-M10: personal-data inventory and a tested erasure path (owner-run SQL, pseudonymises the audit log inside one transaction, verifies, rolls back otherwise). Found: `hub.users.display_name` can hold the e-mail address (the one-time-PIN login sends no name), contrary to the schema comment.

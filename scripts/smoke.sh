@@ -200,4 +200,29 @@ if "$docker" run --rm "${common[@]}" -e "DATABASE_URL=$(db_url content_hub_app "
   exit 1
 fi
 
+# 9. Erasing a person (docs/PERSONAL_DATA.md): the owner-run script removes every trace of a subject, keeps the audit log's
+# shape and its append-only trigger, refuses an unknown subject, and the application role still cannot touch the log.
+psql_admin -d content_hub << 'SQL'
+INSERT INTO hub.users (subject, display_name) VALUES ('smoke-person', 'smoke.person@example.org'), ('smoke-other', 'Other Person');
+INSERT INTO hub.posts (title, body_markdown, status, created_by) VALUES ('Erase me', 'x', 'draft', 'smoke-person'), ('Keep me', 'y', 'draft', 'smoke-other');
+INSERT INTO hub.audit_log (actor_subject, action, entity_type, entity_id, after)
+  VALUES ('smoke-person', 'post.create', 'post', '1', '{"created_by": "smoke-person", "title": "Erase me"}'), ('smoke-other', 'post.create', 'post', '2', '{"created_by": "smoke-other"}');
+SQL
+"$docker" cp "$here/erase-person.sql" "$pgname":/tmp/erase-person.sql
+owner_psql() { "$docker" exec -i -e "PGPASSWORD=$own_pw" "$pgname" psql -X -q -U content_hub_migrate -h 127.0.0.1 -d content_hub "$@"; }
+if owner_psql -v subject=smoke-nobody -f /tmp/erase-person.sql > /dev/null 2>&1; then
+  echo "FAIL: erase-person.sql accepted a subject nothing is stored for" >&2; exit 1
+fi
+out="$(owner_psql -v subject=smoke-person -f /tmp/erase-person.sql 2>&1)" \
+  || { echo "FAIL: erase-person.sql failed: $out" >&2; exit 1; }
+left="$(psql_admin -d content_hub -At -c "SELECT (SELECT count(*) FROM hub.users WHERE subject = 'smoke-person') + (SELECT count(*) FROM hub.posts WHERE created_by = 'smoke-person') + (SELECT count(*) FROM hub.audit_log WHERE actor_subject = 'smoke-person' OR after::text LIKE '%smoke-person%')")"
+[[ "$left" == 0 ]] || { echo "FAIL: $left trace(s) of the erased subject remain" >&2; exit 1; }
+kept="$(psql_admin -d content_hub -At -c "SELECT (SELECT count(*) FROM hub.users WHERE subject = 'smoke-other') + (SELECT count(*) FROM hub.posts WHERE created_by = 'smoke-other') + (SELECT count(*) FROM hub.audit_log WHERE actor_subject = 'smoke-other') + (SELECT count(*) FROM hub.audit_log WHERE actor_subject LIKE 'erased-%' AND after::text LIKE '%erased-%')")"
+[[ "$kept" == 4 ]] || { echo "FAIL: expected the other person's rows and the pseudonymised audit row to remain (got $kept)" >&2; exit 1; }
+trg="$(psql_admin -d content_hub -At -c "SELECT tgenabled FROM pg_trigger WHERE tgname = 'audit_log_append_only'")"
+[[ "$trg" == O ]] || { echo "FAIL: the audit log trigger is not enabled after the erasure" >&2; exit 1; }
+if psql_admin -d content_hub -c "SET ROLE content_hub_app; UPDATE hub.audit_log SET action = 'x.y'" > /dev/null 2>&1; then
+  echo "FAIL: the application role can update the audit log" >&2; exit 1
+fi
+
 echo "smoke: ok"

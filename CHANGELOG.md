@@ -39,6 +39,7 @@
   Walrus through the internal publisher (HS256 tokens bound to the exact epochs and size), recorded with its hash,
   signature, signer, blob and estimated expiry; at most one new snapshot a day, renewed before storage ends, mainnet off
   unless allowed. The Walrus client for the publisher may call only its configured host.
+- docs/PERSONAL_DATA.md and scripts/erase-person.sql: what is stored about signed-in people, and a tested erasure path (smoke step 9).
 - docs/SNAPSHOT.md: the format, the signature, verification and operation.
 - docs/PUBLISHING.md: platforms, credentials, least-privilege accounts, egress, going live.
 - Roadmap items have an optional public due date (`public_due_at`, exposed as `due_at` in the public views).
