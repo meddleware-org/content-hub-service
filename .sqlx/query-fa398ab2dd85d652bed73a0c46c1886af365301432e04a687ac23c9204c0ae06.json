@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO hub.settings (key, value, updated_by) VALUES ($1, $2, 'system:worker') ON CONFLICT (key) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Jsonb"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "fa398ab2dd85d652bed73a0c46c1886af365301432e04a687ac23c9204c0ae06"
+}

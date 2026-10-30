@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT s.status AS \"status!\", count(i.id)::bigint AS \"n!\"\n             FROM unnest(ARRAY['planned','queued','sending','posted','failed','unknown','manual_required','cancelled']) AS s(status)\n             LEFT JOIN hub.platform_instances i ON i.status = s.status\n            GROUP BY s.status ORDER BY s.status",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "status!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "n!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      null,
+      null
+    ]
+  },
+  "hash": "24872b6e8b77bb9405404360afc632acb412bf0d16e2761be407e83454faee43"
+}

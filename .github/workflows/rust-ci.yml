@@ -1,0 +1,200 @@
+name: Rust CI
+
+# fmt, clippy, the SQLx offline-metadata check, tests, coverage, cargo-deny, the SBOM gate, MSRV, the client
+# contract (the published @meddleware/content-hub-client against the built binary: test tooling only, nothing
+# of it ships), and the image (configuration scan, licence notices, build, vulnerability scan, smoke test).
+#
+# The tests run against a real PostgreSQL 18 with TLS (scripts/test-postgres.sh: the same image, pinned by
+# digest, the database tier runs; a throwaway CA, `sslmode=verify-full`). It is started by a script rather
+# than as a `services:` container because the tests need TLS, which a service container cannot be given
+# flags for. REQUIRE_TEST_DATABASE=1 turns a missing server into a failure, so no database test can be
+# skipped silently; the test steps also fail on any ignored test.
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+  # The release workflow runs the same checks on the tagged commit.
+  workflow_call:
+
+permissions:
+  contents: read
+
+# Queries are checked at compile time against the committed metadata in .sqlx/ (no database at build time);
+# the `sqlx prepare --check` step proves that metadata matches the migrated schema.
+env:
+  SQLX_OFFLINE: "true"
+
+jobs:
+  check:
+    name: fmt, clippy, SQLx metadata, test, coverage, cargo-deny, SBOM gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # rustup ships on the runner image; using it directly leaves no third-party toolchain action to pin.
+      - name: Install the stable toolchain
+        run: rustup toolchain install stable --profile minimal --component rustfmt,clippy,llvm-tools --no-self-update && rustup default stable
+
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          # Only save the cache on main-branch pushes to avoid saturating the cache upload bandwidth.
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+
+      - name: Format check
+        run: cargo fmt --check
+
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
+
+      - name: Start PostgreSQL (TLS)
+        run: bash scripts/test-postgres.sh start
+
+      # Built from crates.io at an exact version with the lockfile (Postgres and rustls only).
+      - name: Install sqlx-cli
+        run: cargo install sqlx-cli --version 0.9.0 --locked --no-default-features --features rustls,postgres
+
+      # The offline metadata in .sqlx/ must describe exactly the queries against the migrated schema: migrate a
+      # scratch database with the embedded migrations, then let SQLx re-check every query macro against it.
+      - name: SQLx offline metadata is current
+        env:
+          SQLX_OFFLINE: "false"
+        run: |
+          DATABASE_URL="$(printf '%s' "$TEST_DATABASE_URL" | sed 's#/postgres?#/content_hub_prepare?#')"
+          export DATABASE_URL
+          sqlx database create
+          sqlx migrate run --source crates/store/migrations
+          cargo sqlx prepare --workspace --check -- --all-targets
+
+      # Nothing may be ignored or skipped.
+      - name: Test
+        run: |
+          set -o pipefail
+          cargo test --workspace --locked 2>&1 | tee test.log
+          if grep -E '[1-9][0-9]* ignored' test.log; then echo "::error::a test was ignored"; exit 1; fi
+          if grep -E 'SKIPPED' test.log; then echo "::error::a database test was skipped"; exit 1; fi
+          echo "tests run: $(grep -E '^test result' test.log | awk '{ n += $4 } END { print n }')"
+
+      # Coverage figure (RUST lens): printed to the job summary; informational, not a gate.
+      - name: Install cargo-llvm-cov and cargo-cyclonedx
+        uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2.87.29
+        with:
+          tool: cargo-llvm-cov@0.9.1,cargo-cyclonedx@0.5.9
+
+      - name: Coverage
+        run: |
+          cargo llvm-cov --workspace --locked --summary-only | tee coverage.txt
+          { echo '### Line coverage'; echo '```'; tail -n 3 coverage.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+
+      # Advisories, licences, bans and sources per deny.toml (the same RustSec database as `cargo audit`).
+      - name: cargo deny
+        uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25 # v2.1.1
+
+      # The release attests a CycloneDX SBOM per binary; this is the gate it must pass there too.
+      - name: SBOM gate (tests, then the real SBOMs)
+        run: |
+          bash scripts/tests/check-sbom-test.sh
+          cargo cyclonedx --manifest-path crates/cli/Cargo.toml --format json --spec-version 1.5 \
+            --no-build-deps --target x86_64-unknown-linux-gnu -q
+          bash scripts/check-sbom.sh crates/cli/content-hub.cdx.json content-hub
+
+      # The release merges the two native per-architecture images into one index; this gate (used there) is tested here.
+      - name: Index gate tests
+        run: bash scripts/tests/check-index-test.sh
+
+      - name: Stop PostgreSQL
+        if: always()
+        run: bash scripts/test-postgres.sh stop
+
+  msrv:
+    name: MSRV (rust-version in Cargo.toml)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install the declared minimum toolchain
+        run: rustup toolchain install 1.94 --profile minimal --no-self-update && rustup default 1.94
+      - name: Check on the declared minimum toolchain
+        run: cargo check --locked --workspace --all-targets
+
+      # The dependency graph's floor matters at run time too: the tests run on it, against PostgreSQL.
+      - name: Start PostgreSQL (TLS)
+        run: bash scripts/test-postgres.sh start
+
+      - name: Test on the declared minimum toolchain
+        run: cargo test --locked --workspace
+
+      - name: Stop PostgreSQL
+        if: always()
+        run: bash scripts/test-postgres.sh stop
+
+  contract:
+    name: Client contract (the published client against the binary)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install the stable toolchain
+        run: rustup toolchain install stable --profile minimal --no-self-update && rustup default stable
+
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+
+      - name: Build the binary
+        run: cargo build --release --locked -p content-hub
+
+      # The route-exposure and vectors checks need no database (each process starts with a pool that is never
+      # used); the data contract joins when the routes are implemented.
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '26'
+
+      - name: Run the client package against the binary
+        working-directory: tests/contract
+        env:
+          HUB_BIN: ${{ github.workspace }}/target/release/content-hub
+          VECTORS: ${{ github.workspace }}/vectors.json
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm test
+
+  image:
+    name: Image (configuration scan, licence notices, build, scan, smoke test)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Trivy configuration scan
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: config
+          scan-ref: .
+          scanners: misconfig,secret
+          severity: CRITICAL,HIGH
+          exit-code: "1"
+          version: v0.74.0
+
+      # cargo-about fails the stage when a linked crate's licence is not accepted by about.toml.
+      - name: Third-party licence notices
+        run: |
+          docker build --target notices --tag content-hub-service:notices .
+          docker run --rm content-hub-service:notices cat /out/THIRD_PARTY_LICENSES.txt > THIRD_PARTY_LICENSES.txt
+          test -s THIRD_PARTY_LICENSES.txt
+          grep -q 'Apache License' THIRD_PARTY_LICENSES.txt
+
+      - name: Build (not pushed)
+        run: docker build --tag content-hub-service:ci .
+
+      - name: Scan the image (fail on fixable CRITICAL/HIGH)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: content-hub-service:ci
+          severity: CRITICAL,HIGH
+          exit-code: "1"
+          ignore-unfixed: true
+          version: v0.74.0
+
+      # Starts its own PostgreSQL (scripts/test-postgres.sh), provisions the three roles, and runs migrate,
+      # public and admin as separate containers (read-only root, no capabilities).
+      - name: Smoke test (the subcommands against PostgreSQL)
+        run: bash scripts/smoke.sh content-hub-service:ci

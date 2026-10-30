@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO hub.spend_ledger (period_month, platform_definition_id, platform_target_id, platform_instance_id, kind,\n                                         amount_usd_micros, note)\n           SELECT date_trunc('month', now() AT TIME ZONE 'UTC')::date, t.platform_definition_id, t.id, i.id, $2, $3, $4\n             FROM hub.platform_instances i JOIN hub.platform_targets t ON t.id = i.platform_target_id\n            WHERE i.id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "161542673566e845c0d0950ae4807492533c542ef3caeec186736be92127bf77"
+}

@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO hub.spend_ledger (period_month, platform_definition_id, platform_target_id, platform_instance_id, kind,\n                                         amount_usd_micros, note)\n           SELECT period_month, platform_definition_id, platform_target_id, platform_instance_id, 'release', outstanding, $2\n             FROM (SELECT period_month, platform_definition_id, platform_target_id, platform_instance_id,\n                          sum(CASE kind WHEN 'reserve' THEN amount_usd_micros WHEN 'release' THEN -amount_usd_micros ELSE 0 END)::bigint AS outstanding\n                     FROM hub.spend_ledger WHERE platform_instance_id = $1\n                    GROUP BY period_month, platform_definition_id, platform_target_id, platform_instance_id) o\n            WHERE outstanding > 0\n           RETURNING amount_usd_micros",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "amount_usd_micros",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "hub.spend_ledger",
+            "name": "amount_usd_micros"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "4d4a5d83c04a22ece1ea3e3ac87e3c2659b9b36d36e95059942cc0fc452462c3"
+}

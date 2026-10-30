@@ -1,0 +1,160 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, network, generated_at, schema_version, sha256, byte_size, signature, signer_address, blob_id, object_id,\n                  epochs, expires_at\n             FROM hub.snapshots WHERE network = $1 ORDER BY generated_at DESC, id DESC LIMIT 1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "hub.snapshots",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "network",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "hub.snapshots",
+            "name": "network"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "generated_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "hub.snapshots",
+            "name": "generated_at"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "schema_version",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "hub.snapshots",
+            "name": "schema_version"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "sha256",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "hub.snapshots",
+            "name": "sha256"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "byte_size",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "hub.snapshots",
+            "name": "byte_size"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "signature",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "hub.snapshots",
+            "name": "signature"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "signer_address",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "hub.snapshots",
+            "name": "signer_address"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "blob_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "hub.snapshots",
+            "name": "blob_id"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "object_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "hub.snapshots",
+            "name": "object_id"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "epochs",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "hub.snapshots",
+            "name": "epochs"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "expires_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "hub.snapshots",
+            "name": "expires_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "0ecdf78ca35cd95e27cb2dac67ecb6f0ac55f18c15497b443b56d63f998bb747"
+}

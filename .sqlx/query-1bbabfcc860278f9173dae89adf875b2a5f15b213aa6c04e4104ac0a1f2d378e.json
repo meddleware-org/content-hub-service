@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH stale AS (\n             UPDATE hub.platform_instances SET status = 'unknown', sending_started_at = NULL,\n                    last_error = 'no result within the claim lease (the worker stopped mid-send?); check the platform, then resolve'\n              WHERE status = 'sending' AND sending_started_at < now() - make_interval(secs => $1::double precision)\n              RETURNING id),\n           closed AS (\n             UPDATE hub.delivery_attempts a SET finished_at = now(), outcome = 'unknown',\n                    response_excerpt = 'closed by the janitor: no result within the claim lease'\n               FROM stale WHERE a.platform_instance_id = stale.id AND a.finished_at IS NULL\n             RETURNING a.id)\n           SELECT id AS \"id!\" FROM stale",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "hub.platform_instances",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Float8"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "1bbabfcc860278f9173dae89adf875b2a5f15b213aa6c04e4104ac0a1f2d378e"
+}

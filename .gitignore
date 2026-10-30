@@ -1,0 +1,30 @@
+# Rust build output
+target/
+
+# SBOMs generated in CI (cargo cyclonedx writes them next to each Cargo.toml)
+*.cdx.json
+
+# The CI-only client-contract project's dependencies
+node_modules/
+
+# Coverage output
+coverage.txt
+lcov.info
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo

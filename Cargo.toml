@@ -1,0 +1,75 @@
+[workspace]
+resolver = "3"
+members = ["crates/core", "crates/store", "crates/publish", "crates/api", "crates/worker", "crates/cli"]
+
+[workspace.package]
+version = "0.0.1"
+edition = "2024"
+# The dependency graph's floor (sqlx 0.9 needs 1.94; checked in CI by the `msrv` job).
+rust-version = "1.94"
+license = "0BSD"
+repository = "https://github.com/meddleware-org/content-hub-service"
+publish = false
+
+# Exact pins, as in the rest of the fleet: a version changes only through a reviewed Cargo.lock update.
+[workspace.dependencies]
+content-hub-core = { path = "crates/core" }
+content-hub-store = { path = "crates/store" }
+content-hub-publish = { path = "crates/publish" }
+content-hub-api = { path = "crates/api" }
+content-hub-worker = { path = "crates/worker" }
+
+# PostgreSQL: SQLx with compile-time-checked queries (offline metadata in .sqlx/), rustls on the ring provider,
+# `verify-full` only. No MySQL/SQLite drivers and no `any` driver.
+sqlx = { version = "=0.9.0", default-features = false, features = [
+  "postgres",
+  "runtime-tokio",
+  "tls-rustls-ring-webpki",
+  "macros",
+  "migrate",
+  "json",
+  "chrono",
+  "uuid",
+] }
+axum = { version = "=0.8.9", default-features = false, features = ["http1", "json", "query", "tokio", "tower-log"] }
+tower = { version = "=0.5.3", default-features = false, features = ["util", "limit", "timeout"] }
+tokio = { version = "=1.54.1", default-features = false }
+clap = { version = "=4.6.7", default-features = false, features = ["std", "derive", "env", "help", "usage", "error-context"] }
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = "=1.0.154"
+thiserror = "=2.0.21"
+tracing = "=0.1.44"
+tracing-subscriber = { version = "=0.3.23", default-features = false, features = ["fmt", "json", "env-filter", "ansi"] }
+url = "=2.5.8"
+chrono = { version = "=0.4.45", default-features = false, features = ["std", "clock", "serde"] }
+uuid = { version = "=1.29.0", default-features = false, features = ["std", "v4", "serde"] }
+getrandom = "=0.4.3"
+unicode-segmentation = "=1.13.3"
+unicode-normalization = "=0.1.26"
+base64 = "=0.23.1"
+sha2 = "=0.11.1"
+blake2 = "=0.11.0"
+ring = "=0.17.14"
+rustls = { version = "=0.23.46", default-features = false, features = ["ring", "std", "tls12"] }
+reqwest = { version = "=0.13.5", default-features = false, features = ["rustls-no-provider", "json", "http2"] }
+utoipa = { version = "=6.0.0", features = ["chrono", "uuid"] }
+serde-saphyr = "=2.0.0"
+proptest = "=1.12.0"
+tower-http = { version = "=0.7.1", default-features = false, features = ["timeout", "limit"] }
+
+[workspace.lints.rust]
+unsafe_code = "deny"
+
+[workspace.lints.clippy]
+dbg_macro = "deny"
+todo = "deny"
+unimplemented = "deny"
+
+[profile.release]
+# Arithmetic overflow aborts instead of wrapping silently, even in release builds.
+overflow-checks = true
+# A panic stops the process (Kubernetes restarts the container with clean state).
+panic = "abort"
+lto = true
+codegen-units = 1
+strip = true

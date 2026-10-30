@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT min(daily_post_limit) FROM hub.spend_caps\n            WHERE daily_post_limit IS NOT NULL\n              AND (scope = 'total' OR (scope = 'platform' AND platform_definition_id = $1)\n                   OR (scope = 'target' AND platform_target_id = $2))",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "min",
+        "type_info": "Int4",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "d86b1780e647ac9a2f71cdca012d4013676fc428f215afce50baff846f4823e6"
+}

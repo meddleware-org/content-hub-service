@@ -1,0 +1,105 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO hub.task_links (task_id, link_kind, post_id, platform_instance_id, url, label) VALUES ($1, $2, $3, $4, $5, $6)\n           RETURNING id, link_kind, post_id, platform_instance_id, url, label, created_at",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "hub.task_links",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "link_kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "hub.task_links",
+            "name": "link_kind"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "post_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "hub.task_links",
+            "name": "post_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "platform_instance_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "hub.task_links",
+            "name": "platform_instance_id"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "url",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "hub.task_links",
+            "name": "url"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "label",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "hub.task_links",
+            "name": "label"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "hub.task_links",
+            "name": "created_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Int8",
+        "Int8",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      true,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "5e7f869ae4f6bef61de2d483a916b5c2b08037ce2e929aada7743b2ec121dd9d"
+}

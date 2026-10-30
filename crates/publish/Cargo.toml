@@ -1,0 +1,31 @@
+[package]
+name = "content-hub-publish"
+description = "Platform publishers of the content hub (Discord, Telegram, Bluesky, Mastodon, the owned feed; X behind a flag)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+content-hub-core = { workspace = true }
+reqwest = { workspace = true }
+rustls = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true, features = ["net", "time"] }
+chrono = { workspace = true }
+uuid = { workspace = true }
+ring = { workspace = true }
+base64 = { workspace = true }
+getrandom = { workspace = true }
+tracing = { workspace = true }
+url = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "net", "time", "sync"] }
+axum = { workspace = true }

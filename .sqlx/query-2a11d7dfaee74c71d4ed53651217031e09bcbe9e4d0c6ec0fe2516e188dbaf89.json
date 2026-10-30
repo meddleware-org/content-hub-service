@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT COALESCE(ph.internal_name, '(no phase)') AS \"key!\", count(*) AS \"count!\"\n             FROM hub.posts p\n             LEFT JOIN hub.roadmap_items i ON i.id = p.roadmap_item_id\n             LEFT JOIN hub.roadmap_phases ph ON ph.id = i.phase_id\n            GROUP BY ph.internal_name, ph.sort_order ORDER BY ph.sort_order NULLS LAST, 1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "key!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "count!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      null,
+      null
+    ]
+  },
+  "hash": "2a11d7dfaee74c71d4ed53651217031e09bcbe9e4d0c6ec0fe2516e188dbaf89"
+}

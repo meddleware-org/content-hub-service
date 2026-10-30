@@ -1,0 +1,326 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT i.id, i.post_id, p.public_id AS post_public_id, i.attempt_count, i.idempotency_key, i.cost_estimate_usd_micros,\n                  i.payload_title AS \"payload_title!\", i.payload_body AS \"payload_body!\", i.payload_sha256 AS \"payload_sha256!\",\n                  t.id AS target_id, t.name AS target_name, t.external_ref AS target_external_ref, t.config AS target_config,\n                  t.secret_ref AS target_secret_ref, t.is_sandbox AS target_is_sandbox, t.enabled AS target_enabled,\n                  t.live AS target_live,\n                  d.id AS platform_definition_id, d.code AS platform_code, d.enabled AS platform_enabled, d.posting_mode,\n                  d.base_url, d.counting_method, d.primary_limit, d.secondary_limits, d.markup\n             FROM hub.platform_instances i\n             JOIN hub.posts p ON p.id = i.post_id\n             JOIN hub.platform_targets t ON t.id = i.platform_target_id\n             JOIN hub.platform_definitions d ON d.id = t.platform_definition_id\n            WHERE i.status = 'queued' AND COALESCE(i.next_attempt_at, i.scheduled_at) <= now()\n            ORDER BY COALESCE(i.next_attempt_at, i.scheduled_at), i.id\n            LIMIT 1\n              FOR UPDATE OF i SKIP LOCKED",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "hub.platform_instances",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "post_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "hub.platform_instances",
+            "name": "post_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "post_public_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "hub.posts",
+            "name": "public_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "attempt_count",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "hub.platform_instances",
+            "name": "attempt_count"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "idempotency_key",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "hub.platform_instances",
+            "name": "idempotency_key"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "cost_estimate_usd_micros",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "hub.platform_instances",
+            "name": "cost_estimate_usd_micros"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "payload_title!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "hub.platform_instances",
+            "name": "payload_title"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "payload_body!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "hub.platform_instances",
+            "name": "payload_body"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "payload_sha256!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "hub.platform_instances",
+            "name": "payload_sha256"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "target_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "hub.platform_targets",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "target_name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "hub.platform_targets",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "target_external_ref",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "hub.platform_targets",
+            "name": "external_ref"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "target_config",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "hub.platform_targets",
+            "name": "config"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "target_secret_ref",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "hub.platform_targets",
+            "name": "secret_ref"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
+        "name": "target_is_sandbox",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "hub.platform_targets",
+            "name": "is_sandbox"
+          }
+        }
+      },
+      {
+        "ordinal": 15,
+        "name": "target_enabled",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "hub.platform_targets",
+            "name": "enabled"
+          }
+        }
+      },
+      {
+        "ordinal": 16,
+        "name": "target_live",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "hub.platform_targets",
+            "name": "live"
+          }
+        }
+      },
+      {
+        "ordinal": 17,
+        "name": "platform_definition_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "hub.platform_definitions",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 18,
+        "name": "platform_code",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "hub.platform_definitions",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 19,
+        "name": "platform_enabled",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "hub.platform_definitions",
+            "name": "enabled"
+          }
+        }
+      },
+      {
+        "ordinal": 20,
+        "name": "posting_mode",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "hub.platform_definitions",
+            "name": "posting_mode"
+          }
+        }
+      },
+      {
+        "ordinal": 21,
+        "name": "base_url",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "hub.platform_definitions",
+            "name": "base_url"
+          }
+        }
+      },
+      {
+        "ordinal": 22,
+        "name": "counting_method",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "hub.platform_definitions",
+            "name": "counting_method"
+          }
+        }
+      },
+      {
+        "ordinal": 23,
+        "name": "primary_limit",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "hub.platform_definitions",
+            "name": "primary_limit"
+          }
+        }
+      },
+      {
+        "ordinal": 24,
+        "name": "secondary_limits",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "hub.platform_definitions",
+            "name": "secondary_limits"
+          }
+        }
+      },
+      {
+        "ordinal": 25,
+        "name": "markup",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "hub.platform_definitions",
+            "name": "markup"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      false,
+      false,
+      true,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "ee1735fc0add12792842f53a899cd3f4ce317b37b58d7aa2872a82c9172db178"
+}

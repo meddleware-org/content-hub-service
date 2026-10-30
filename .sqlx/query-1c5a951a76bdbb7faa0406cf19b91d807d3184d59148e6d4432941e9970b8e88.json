@@ -1,0 +1,160 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT t.id, t.platform_definition_id, d.code AS platform_code, t.name, t.external_ref, t.config, t.secret_ref,\n                  t.is_sandbox, t.enabled, t.live, t.created_at, t.updated_at\n             FROM hub.platform_targets t JOIN hub.platform_definitions d ON d.id = t.platform_definition_id\n            WHERE t.id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "hub.platform_targets",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "platform_definition_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "hub.platform_targets",
+            "name": "platform_definition_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "platform_code",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "hub.platform_definitions",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "hub.platform_targets",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "external_ref",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "hub.platform_targets",
+            "name": "external_ref"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "config",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "hub.platform_targets",
+            "name": "config"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "secret_ref",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "hub.platform_targets",
+            "name": "secret_ref"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "is_sandbox",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "hub.platform_targets",
+            "name": "is_sandbox"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "enabled",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "hub.platform_targets",
+            "name": "enabled"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "live",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "hub.platform_targets",
+            "name": "live"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "hub.platform_targets",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "updated_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "hub.platform_targets",
+            "name": "updated_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "1c5a951a76bdbb7faa0406cf19b91d807d3184d59148e6d4432941e9970b8e88"
+}

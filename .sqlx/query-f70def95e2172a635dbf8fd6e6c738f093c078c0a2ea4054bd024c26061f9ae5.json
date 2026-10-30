@@ -1,0 +1,100 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, link_kind, post_id, platform_instance_id, url, label, created_at FROM hub.task_links WHERE task_id = $1 ORDER BY id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "hub.task_links",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "link_kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "hub.task_links",
+            "name": "link_kind"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "post_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "hub.task_links",
+            "name": "post_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "platform_instance_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "hub.task_links",
+            "name": "platform_instance_id"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "url",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "hub.task_links",
+            "name": "url"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "label",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "hub.task_links",
+            "name": "label"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "hub.task_links",
+            "name": "created_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      true,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "f70def95e2172a635dbf8fd6e6c738f093c078c0a2ea4054bd024c26061f9ae5"
+}

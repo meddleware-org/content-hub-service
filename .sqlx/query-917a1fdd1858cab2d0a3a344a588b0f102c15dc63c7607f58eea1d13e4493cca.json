@@ -1,0 +1,21 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE hub.platform_targets SET name = $2, external_ref = $3, config = $4, secret_ref = $5, is_sandbox = $6, enabled = $7,\n                  live = $8\n            WHERE id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Text",
+        "Jsonb",
+        "Text",
+        "Bool",
+        "Bool",
+        "Bool"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "917a1fdd1858cab2d0a3a344a588b0f102c15dc63c7607f58eea1d13e4493cca"
+}

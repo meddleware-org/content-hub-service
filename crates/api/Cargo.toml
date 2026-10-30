@@ -1,0 +1,42 @@
+[package]
+name = "content-hub-api"
+description = "The content hub's HTTP surfaces: the admin router and the public router (separate processes)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+content-hub-core = { workspace = true }
+content-hub-store = { workspace = true }
+axum = { workspace = true }
+tower = { workspace = true }
+tokio = { workspace = true, features = ["rt", "net", "time", "sync", "macros"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sqlx = { workspace = true }
+tracing = { workspace = true }
+tower-http = { workspace = true }
+base64 = { workspace = true }
+ring = { workspace = true }
+reqwest = { workspace = true }
+utoipa = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true }
+sha2 = { workspace = true }
+thiserror = { workspace = true }
+url = { workspace = true }
+rustls = { workspace = true }
+
+[features]
+# Exposes the test signing key (auth::jwt::testing) and the store's test harness to other crates' tests.
+testing = ["content-hub-store/testing"]
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
+content-hub-store = { workspace = true, features = ["testing"] }

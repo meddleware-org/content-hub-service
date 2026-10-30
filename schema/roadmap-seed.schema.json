@@ -1,0 +1,276 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/meddleware-org/content-hub-service/schema/roadmap-seed.schema.json",
+  "title": "Content hub roadmap seed",
+  "description": "Seed data imported by `content-hub seed --path <file>` (content-hub-service). internal_* fields are admin-only; public_* fields are what the public roadmap and feeds may show. Keys are stable identifiers; the import is an idempotent upsert by key.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "phases",
+    "items",
+    "tasks"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "phases": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/phase"
+      }
+    },
+    "items": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/item"
+      }
+    },
+    "tasks": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/task"
+      }
+    }
+  },
+  "$defs": {
+    "key": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]{0,62}$"
+    },
+    "text": {
+      "type": "string",
+      "maxLength": 4000
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "datetime": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "phase": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "key",
+        "order",
+        "internal_name",
+        "internal_description",
+        "public_name",
+        "public_description",
+        "visible_human",
+        "visible_bot"
+      ],
+      "properties": {
+        "key": {
+          "$ref": "#/$defs/key"
+        },
+        "order": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "internal_name": {
+          "$ref": "#/$defs/title"
+        },
+        "internal_description": {
+          "$ref": "#/$defs/text"
+        },
+        "public_name": {
+          "$ref": "#/$defs/title"
+        },
+        "public_description": {
+          "$ref": "#/$defs/text"
+        },
+        "window_start": {
+          "$ref": "#/$defs/datetime"
+        },
+        "window_end": {
+          "$ref": "#/$defs/datetime"
+        },
+        "visible_human": {
+          "type": "boolean"
+        },
+        "visible_bot": {
+          "type": "boolean"
+        }
+      }
+    },
+    "item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "key",
+        "phase",
+        "type",
+        "internal_title",
+        "internal_description",
+        "visible_human",
+        "visible_bot",
+        "status"
+      ],
+      "properties": {
+        "key": {
+          "$ref": "#/$defs/key"
+        },
+        "phase": {
+          "$ref": "#/$defs/key"
+        },
+        "type": {
+          "enum": [
+            "infra",
+            "social",
+            "content",
+            "listing",
+            "ad_campaign",
+            "research",
+            "engineering",
+            "bot_discoverability",
+            "trustless",
+            "other"
+          ]
+        },
+        "internal_title": {
+          "$ref": "#/$defs/title"
+        },
+        "internal_description": {
+          "$ref": "#/$defs/text"
+        },
+        "public_title": {
+          "$ref": "#/$defs/title"
+        },
+        "public_description": {
+          "$ref": "#/$defs/text"
+        },
+        "visible_human": {
+          "type": "boolean"
+        },
+        "visible_bot": {
+          "type": "boolean"
+        },
+        "status": {
+          "enum": [
+            "planned",
+            "in_progress",
+            "done",
+            "cancelled"
+          ]
+        },
+        "planned_at": {
+          "$ref": "#/$defs/datetime"
+        },
+        "due_at": {
+          "$ref": "#/$defs/datetime"
+        },
+        "public_due_at": {
+          "$ref": "#/$defs/datetime",
+          "description": "Optional public date (for example a launch time). The only item date the public roadmap shows; planned_at and due_at stay internal."
+        }
+      },
+      "if": {
+        "anyOf": [
+          {
+            "properties": {
+              "visible_human": {
+                "const": true
+              }
+            }
+          },
+          {
+            "properties": {
+              "visible_bot": {
+                "const": true
+              }
+            }
+          }
+        ]
+      },
+      "then": {
+        "required": [
+          "public_title",
+          "public_description"
+        ]
+      }
+    },
+    "task": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "key",
+        "task_type",
+        "title",
+        "status"
+      ],
+      "properties": {
+        "key": {
+          "$ref": "#/$defs/key"
+        },
+        "item": {
+          "$ref": "#/$defs/key"
+        },
+        "task_type": {
+          "enum": [
+            "ACCOUNT_SETUP",
+            "SOCIAL_POST",
+            "BLOG_ARTICLE",
+            "LISTING_SUBMISSION",
+            "AD_CAMPAIGN",
+            "KOL_CAMPAIGN",
+            "ENGINEERING",
+            "RESEARCH",
+            "OTHER"
+          ]
+        },
+        "title": {
+          "$ref": "#/$defs/title"
+        },
+        "description": {
+          "$ref": "#/$defs/text"
+        },
+        "platforms": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9_]{0,40}$"
+          }
+        },
+        "targets": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "maxLength": 200
+          }
+        },
+        "status": {
+          "enum": [
+            "planned",
+            "ready",
+            "in_progress",
+            "done",
+            "blocked"
+          ]
+        },
+        "scheduled_at": {
+          "$ref": "#/$defs/datetime"
+        },
+        "review_interval_days": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 3650
+        },
+        "depends_on": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/key"
+          }
+        },
+        "entity_gated": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}

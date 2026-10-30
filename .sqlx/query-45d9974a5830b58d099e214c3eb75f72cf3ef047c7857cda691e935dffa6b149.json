@@ -1,0 +1,45 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT d.id AS platform_definition_id, d.code AS platform,\n                  COALESCE(sum(CASE WHEN l.kind = 'release' THEN -l.amount_usd_micros ELSE l.amount_usd_micros END), 0)::bigint AS \"used_usd_micros!\"\n             FROM hub.spend_ledger l JOIN hub.platform_definitions d ON d.id = l.platform_definition_id\n            WHERE l.period_month = date_trunc('month', now() AT TIME ZONE 'UTC')::date\n            GROUP BY d.id, d.code ORDER BY d.code",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "platform_definition_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "hub.platform_definitions",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "platform",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "hub.platform_definitions",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "used_usd_micros!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      null
+    ]
+  },
+  "hash": "45d9974a5830b58d099e214c3eb75f72cf3ef047c7857cda691e935dffa6b149"
+}

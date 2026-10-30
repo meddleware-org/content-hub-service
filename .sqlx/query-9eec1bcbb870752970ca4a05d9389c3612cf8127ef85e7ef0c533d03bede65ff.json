@@ -1,0 +1,184 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT * FROM hub.roadmap_phases WHERE id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "hub.roadmap_phases",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "key",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "hub.roadmap_phases",
+            "name": "key"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "public_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "hub.roadmap_phases",
+            "name": "public_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "sort_order",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "hub.roadmap_phases",
+            "name": "sort_order"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "internal_name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "hub.roadmap_phases",
+            "name": "internal_name"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "internal_description",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "hub.roadmap_phases",
+            "name": "internal_description"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "public_name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "hub.roadmap_phases",
+            "name": "public_name"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "public_description",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "hub.roadmap_phases",
+            "name": "public_description"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "window_start",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "hub.roadmap_phases",
+            "name": "window_start"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "window_end",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "hub.roadmap_phases",
+            "name": "window_end"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "visible_human",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "hub.roadmap_phases",
+            "name": "visible_human"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "visible_bot",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "hub.roadmap_phases",
+            "name": "visible_bot"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "hub.roadmap_phases",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "updated_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "hub.roadmap_phases",
+            "name": "updated_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "9eec1bcbb870752970ca4a05d9389c3612cf8127ef85e7ef0c533d03bede65ff"
+}

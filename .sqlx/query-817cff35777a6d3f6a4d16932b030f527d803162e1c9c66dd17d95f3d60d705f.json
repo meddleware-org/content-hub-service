@@ -1,0 +1,64 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT tp.id, tp.platform_definition_id, d.code AS platform_code, tp.platform_target_id\n             FROM hub.task_platforms tp JOIN hub.platform_definitions d ON d.id = tp.platform_definition_id\n            WHERE tp.task_id = $1 ORDER BY tp.id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "hub.task_platforms",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "platform_definition_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "hub.task_platforms",
+            "name": "platform_definition_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "platform_code",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "hub.platform_definitions",
+            "name": "code"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "platform_target_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "hub.task_platforms",
+            "name": "platform_target_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "817cff35777a6d3f6a4d16932b030f527d803162e1c9c66dd17d95f3d60d705f"
+}

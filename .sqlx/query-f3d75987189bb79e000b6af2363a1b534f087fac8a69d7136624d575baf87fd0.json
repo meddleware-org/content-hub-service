@@ -1,0 +1,36 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO hub.platform_definitions (code, name, category, posting_mode, counting_method, primary_limit,\n                  secondary_limits, markup, supports_media, base_url, url_templates, cost_model, enabled, notes)\n           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)\n           ON CONFLICT (code) DO UPDATE SET name = EXCLUDED.name, category = EXCLUDED.category, posting_mode = EXCLUDED.posting_mode,\n                  counting_method = EXCLUDED.counting_method, markup = EXCLUDED.markup, supports_media = EXCLUDED.supports_media,\n                  base_url = EXCLUDED.base_url, url_templates = EXCLUDED.url_templates, cost_model = EXCLUDED.cost_model,\n                  notes = EXCLUDED.notes\n           RETURNING (xmax = 0) AS \"inserted!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "inserted!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Int4",
+        "Jsonb",
+        "Text",
+        "Bool",
+        "Text",
+        "Jsonb",
+        "Jsonb",
+        "Bool",
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "f3d75987189bb79e000b6af2363a1b534f087fac8a69d7136624d575baf87fd0"
+}

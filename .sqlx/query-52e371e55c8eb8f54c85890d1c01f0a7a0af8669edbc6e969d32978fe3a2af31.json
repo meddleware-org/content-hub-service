@@ -1,0 +1,170 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO hub.snapshots (network, generated_at, schema_version, sha256, byte_size, signature, signer_address,\n                                      blob_id, object_id, epochs, expires_at)\n           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)\n           ON CONFLICT (network, sha256) DO UPDATE SET generated_at = EXCLUDED.generated_at, signature = EXCLUDED.signature,\n                  signer_address = EXCLUDED.signer_address, blob_id = EXCLUDED.blob_id, object_id = EXCLUDED.object_id,\n                  epochs = EXCLUDED.epochs, expires_at = EXCLUDED.expires_at\n           RETURNING id, network, generated_at, schema_version, sha256, byte_size, signature, signer_address, blob_id, object_id,\n                     epochs, expires_at",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "hub.snapshots",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "network",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "hub.snapshots",
+            "name": "network"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "generated_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "hub.snapshots",
+            "name": "generated_at"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "schema_version",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "hub.snapshots",
+            "name": "schema_version"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "sha256",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "hub.snapshots",
+            "name": "sha256"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "byte_size",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "hub.snapshots",
+            "name": "byte_size"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "signature",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "hub.snapshots",
+            "name": "signature"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "signer_address",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "hub.snapshots",
+            "name": "signer_address"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "blob_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "hub.snapshots",
+            "name": "blob_id"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "object_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "hub.snapshots",
+            "name": "object_id"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "epochs",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "hub.snapshots",
+            "name": "epochs"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "expires_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "hub.snapshots",
+            "name": "expires_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Timestamptz",
+        "Int4",
+        "Text",
+        "Int4",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Int4",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "52e371e55c8eb8f54c85890d1c01f0a7a0af8669edbc6e969d32978fe3a2af31"
+}

@@ -1,0 +1,172 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT * FROM hub.posts WHERE id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "hub.posts",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "public_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "hub.posts",
+            "name": "public_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "title",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "hub.posts",
+            "name": "title"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "body_markdown",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "hub.posts",
+            "name": "body_markdown"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "status",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "hub.posts",
+            "name": "status"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "tags",
+        "type_info": "TextArray",
+        "origin": {
+          "Table": {
+            "table": "hub.posts",
+            "name": "tags"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "categories",
+        "type_info": "TextArray",
+        "origin": {
+          "Table": {
+            "table": "hub.posts",
+            "name": "categories"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "roadmap_item_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "hub.posts",
+            "name": "roadmap_item_id"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "task_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "hub.posts",
+            "name": "task_id"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "revision",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "hub.posts",
+            "name": "revision"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "created_by",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "hub.posts",
+            "name": "created_by"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "hub.posts",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "updated_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "hub.posts",
+            "name": "updated_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "694f2ebf298b92300a250fe27fa73e4e742947c942bb1ab1f6e4ffb8c60a503d"
+}

@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT COALESCE(sum(CASE kind WHEN 'reserve' THEN amount_usd_micros WHEN 'release' THEN -amount_usd_micros ELSE 0 END), 0)::bigint AS \"o!\"\n             FROM hub.spend_ledger WHERE platform_instance_id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "o!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "13ae6d132cbdbc50322f19be13971c92f02eab22a4e4ef74920d940c825afa4c"
+}

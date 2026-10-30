@@ -1,0 +1,115 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, at, actor_subject, action, entity_type, entity_id, before, after\n             FROM hub.audit_log\n            WHERE id < $1 AND ($2::text IS NULL OR entity_type = $2) AND ($3::text IS NULL OR entity_id = $3)\n            ORDER BY id DESC LIMIT $4",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "hub.audit_log",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "hub.audit_log",
+            "name": "at"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "actor_subject",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "hub.audit_log",
+            "name": "actor_subject"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "action",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "hub.audit_log",
+            "name": "action"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "entity_type",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "hub.audit_log",
+            "name": "entity_type"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "entity_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "hub.audit_log",
+            "name": "entity_id"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "before",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "hub.audit_log",
+            "name": "before"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "after",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "hub.audit_log",
+            "name": "after"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "b87e31545b7a2a0abc67ca448ae7cf314c74c92c6136e20c4e5504d6ced6f4fe"
+}

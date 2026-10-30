@@ -1,0 +1,59 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH month AS (SELECT date_trunc('month', now() AT TIME ZONE 'UTC')::date AS m),\n                used AS (\n                  SELECT COALESCE(sum(CASE WHEN kind = 'release' THEN -amount_usd_micros ELSE amount_usd_micros END), 0)::bigint AS total,\n                         COALESCE(sum(CASE WHEN platform_definition_id = $1\n                                           THEN CASE WHEN kind = 'release' THEN -amount_usd_micros ELSE amount_usd_micros END END), 0)::bigint AS platform,\n                         COALESCE(sum(CASE WHEN platform_target_id = $2\n                                           THEN CASE WHEN kind = 'release' THEN -amount_usd_micros ELSE amount_usd_micros END END), 0)::bigint AS target\n                    FROM hub.spend_ledger, month WHERE period_month = month.m)\n           SELECT (SELECT monthly_limit_usd_micros FROM hub.spend_caps WHERE scope = 'total') AS total_cap,\n                  (SELECT monthly_limit_usd_micros FROM hub.spend_caps WHERE scope = 'platform' AND platform_definition_id = $1) AS platform_cap,\n                  (SELECT monthly_limit_usd_micros FROM hub.spend_caps WHERE scope = 'target' AND platform_target_id = $2) AS target_cap,\n                  used.total AS \"used_total!\", used.platform AS \"used_platform!\", used.target AS \"used_target!\"\n             FROM used",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "total_cap",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "platform_cap",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "target_cap",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "used_total!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "used_platform!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 5,
+        "name": "used_target!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "d9b4907267a46f5f6314bfa54e76f5e49361974559c8f52918fb820f6ba05710"
+}

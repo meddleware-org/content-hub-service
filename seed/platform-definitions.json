@@ -1,0 +1,460 @@
+{
+  "schema_version": 1,
+  "verified_at": "2026-10-25",
+  "definitions": [
+    {
+      "code": "OWNED_FEED",
+      "name": "Owned feed (RSS / JSON Feed)",
+      "category": "owned_channel",
+      "posting_mode": "feed",
+      "markup": "markdown",
+      "enabled": true,
+      "notes": "The hub's own feeds (JSON Feed 1.1 and RSS 2.0), served by the public process. Readable by feed bots, n8n, Zapier, IFTTT and Discord feed bots."
+    },
+    {
+      "code": "DISCORD_ANNOUNCEMENTS",
+      "name": "Discord announcements channel",
+      "category": "social",
+      "posting_mode": "webhook",
+      "counting_method": "codepoints",
+      "primary_limit": 2000,
+      "secondary_limits": {
+        "embed_description": 4096,
+        "embeds_total": 6000,
+        "embeds_max": 10
+      },
+      "markup": "discord_md",
+      "base_url": "https://discord.com",
+      "enabled": true,
+      "notes": "Execute Webhook: content up to 2000 characters; embed description 4096, all embeds 6000 (docs.discord.com, Webhook and Message resources, 2026-10-25). Always send allowed_mentions {\"parse\": []}. Discord's character unit is not documented; code points (verify against a live send). The webhook URL is a secret."
+    },
+    {
+      "code": "DISCORD_SOCIAL_FEED",
+      "name": "Discord social-feed mirror",
+      "category": "internal",
+      "posting_mode": "webhook",
+      "counting_method": "codepoints",
+      "primary_limit": 2000,
+      "secondary_limits": {
+        "embed_description": 4096,
+        "embeds_total": 6000,
+        "embeds_max": 10
+      },
+      "markup": "discord_md",
+      "base_url": "https://discord.com",
+      "enabled": true,
+      "notes": "A channel mirroring every published post, which other bots can read. Same limits as DISCORD_ANNOUNCEMENTS."
+    },
+    {
+      "code": "DISCORD_PER_PACKAGE",
+      "name": "Discord per-package channel",
+      "category": "social",
+      "posting_mode": "webhook",
+      "counting_method": "codepoints",
+      "primary_limit": 2000,
+      "secondary_limits": {
+        "embed_description": 4096,
+        "embeds_total": 6000,
+        "embeds_max": 10
+      },
+      "markup": "discord_md",
+      "base_url": "https://discord.com",
+      "enabled": true,
+      "notes": "One target per package or tool channel (a development log). Same limits as DISCORD_ANNOUNCEMENTS."
+    },
+    {
+      "code": "TELEGRAM_BROADCAST",
+      "name": "Telegram channel",
+      "category": "social",
+      "posting_mode": "api",
+      "counting_method": "utf16",
+      "primary_limit": 4096,
+      "markup": "telegram_html",
+      "base_url": "https://api.telegram.org",
+      "url_templates": {
+        "intent": "https://t.me/share/url?url={url}&text={text}"
+      },
+      "enabled": true,
+      "notes": "sendMessage text 1-4096 characters after entity parsing, offsets in UTF-16 code units; HTML mode tags b/strong, i/em, u/ins, s/strike/del, span.tg-spoiler/tg-spoiler, a, tg-emoji, tg-time, code, pre, blockquote; only the entities &lt; &gt; &amp; &quot; (core.telegram.org/bots/api, 2026-10-25). The bot must be a channel admin with 'post messages'; honour retry_after on 429."
+    },
+    {
+      "code": "BLUESKY",
+      "name": "Bluesky",
+      "category": "social",
+      "posting_mode": "api",
+      "counting_method": "graphemes",
+      "primary_limit": 300,
+      "secondary_limits": {
+        "bytes": 3000
+      },
+      "markup": "plain",
+      "supports_media": true,
+      "base_url": "https://bsky.social",
+      "url_templates": {
+        "intent": "https://bsky.app/intent/compose?text={text}"
+      },
+      "enabled": true,
+      "notes": "app.bsky.feed.post text: maxGraphemes 300, maxLength 3000 (bytes); links are clickable only through richtext facets whose indices count bytes of the UTF-8 text (atproto lexicons, 2026-10-25). Posting uses an app password."
+    },
+    {
+      "code": "MASTODON",
+      "name": "Mastodon",
+      "category": "social",
+      "posting_mode": "api",
+      "counting_method": "graphemes",
+      "primary_limit": 500,
+      "secondary_limits": {
+        "url_weight": 23,
+        "mention_local_part": 1,
+        "limit_source": "instance"
+      },
+      "markup": "plain",
+      "supports_media": true,
+      "enabled": true,
+      "notes": "The limit is per instance: read /api/v2/instance configuration.statuses.max_characters (500 is Mastodon's default) and characters_reserved_per_url (23). Mastodon counts grapheme clusters of the spoiler text plus the text, every URL as 23 and a remote mention as its local part only (StatusLengthValidator, mastodon/mastodon main, 2026-10-25). POST /api/v1/statuses accepts an Idempotency-Key, kept for up to 1 hour."
+    },
+    {
+      "code": "X",
+      "name": "X",
+      "category": "social",
+      "posting_mode": "api",
+      "counting_method": "x_weighted",
+      "primary_limit": 280,
+      "secondary_limits": {
+        "url_weight": 23
+      },
+      "markup": "plain",
+      "supports_media": true,
+      "base_url": "https://api.x.com",
+      "url_templates": {
+        "intent": "https://x.com/intent/tweet?text={text}&url={url}"
+      },
+      "cost_model": {
+        "currency": "USD",
+        "per_post_usd_micros": 15000,
+        "per_post_with_url_usd_micros": 200000
+      },
+      "enabled": false,
+      "notes": "Disabled: the API is pay-per-use only for new developers (price per created post $0.015, $0.20 with a URL: verify at C6). Until a budget exists, posts go out by the web intent (x.com/intent/tweet with text and url, docs.x.com Web Intent, 2026-10-25). Weighted counting: 280, every URL 23 (t.co), NFC, emoji 2 (docs.x.com counting-characters)."
+    },
+    {
+      "code": "FARCASTER",
+      "name": "Farcaster",
+      "category": "social",
+      "posting_mode": "api",
+      "counting_method": "bytes",
+      "primary_limit": 320,
+      "secondary_limits": {
+        "long_cast_bytes": 1024,
+        "embeds_max": 2
+      },
+      "markup": "plain",
+      "enabled": false,
+      "notes": "Evaluate only (limited free tier via Neynar). A cast's text is at most 320 bytes; a long cast is 321 to 1024 bytes (snapchain src/core/validations/cast.rs, 2026-10-25). Who may send long casts: verify."
+    },
+    {
+      "code": "REDDIT",
+      "name": "Reddit",
+      "category": "forum",
+      "posting_mode": "manual",
+      "counting_method": "codepoints",
+      "primary_limit": 40000,
+      "secondary_limits": {
+        "title": 300
+      },
+      "markup": "markdown",
+      "base_url": "https://www.reddit.com",
+      "url_templates": {
+        "intent": "https://www.reddit.com/r/{subreddit}/submit?title={title}&url={url}"
+      },
+      "enabled": true,
+      "notes": "Manual: new Data API access needs pre-approval under the Responsible Builder Policy. Title 300 characters, text post 40000 (third-party references agree; no official page found, verify). The submit link's query parameters are long-standing but undocumented (verify)."
+    },
+    {
+      "code": "BITCOINTALK",
+      "name": "Bitcointalk",
+      "category": "forum",
+      "posting_mode": "manual",
+      "markup": "bbcode",
+      "base_url": "https://bitcointalk.org",
+      "enabled": true,
+      "notes": "Manual (no write API), BBCode. Subject and message limits are not published (verify in the composer before relying on one); no limit is enforced here."
+    },
+    {
+      "code": "DEV_FORUMS",
+      "name": "Developer forums",
+      "category": "forum",
+      "posting_mode": "manual",
+      "markup": "markdown",
+      "url_templates": {
+        "intent": "{target_base}/new-topic?title={title}&body={body}"
+      },
+      "enabled": true,
+      "notes": "Mostly Discourse (one target per forum, its base URL in the target's external_ref). Discourse's new-topic link takes title and body (verify per forum version)."
+    },
+    {
+      "code": "YOUTUBE",
+      "name": "YouTube",
+      "category": "content",
+      "posting_mode": "manual",
+      "counting_method": "codepoints",
+      "primary_limit": 5000,
+      "secondary_limits": {
+        "title": 100
+      },
+      "markup": "plain",
+      "supports_media": true,
+      "base_url": "https://www.youtube.com",
+      "enabled": true,
+      "notes": "Manual uploads. Title 100 characters, description 5000 (YouTube Help 'Edit video details', 2026-10-25)."
+    },
+    {
+      "code": "BLOG",
+      "name": "Blog",
+      "category": "content",
+      "posting_mode": "manual",
+      "markup": "markdown",
+      "enabled": true,
+      "notes": "Articles on the operator's own site; an API publisher may come later."
+    },
+    {
+      "code": "KOL_CONTENT",
+      "name": "KOL content",
+      "category": "content",
+      "posting_mode": "manual",
+      "markup": "plain",
+      "enabled": true,
+      "notes": "Content by third parties, tracked with external_status proposed / confirmed / published."
+    },
+    {
+      "code": "AUDIO_EVENTS",
+      "name": "Audio events",
+      "category": "event",
+      "posting_mode": "manual",
+      "markup": "plain",
+      "enabled": true,
+      "notes": "Live audio (for example X Spaces, which has no create API)."
+    },
+    {
+      "code": "SUI_DIRECTORY",
+      "name": "Sui Directory",
+      "category": "directory",
+      "posting_mode": "manual",
+      "markup": "plain",
+      "base_url": "https://sui.directory",
+      "enabled": true,
+      "notes": "Project submission form, admin-reviewed (sui.directory/submit-project)."
+    },
+    {
+      "code": "ECOSYSTEM_TRACKERS",
+      "name": "Ecosystem trackers",
+      "category": "directory",
+      "posting_mode": "manual",
+      "markup": "plain",
+      "enabled": true,
+      "notes": "Cross-chain project trackers; some have no submission flow and are contacted directly."
+    },
+    {
+      "code": "DAPPRADAR",
+      "name": "DappRadar",
+      "category": "directory",
+      "posting_mode": "manual",
+      "markup": "plain",
+      "base_url": "https://dappradar.com",
+      "cost_model": {
+        "currency": "USD",
+        "note": "paid fast-track listing exists; price not recorded (verify)"
+      },
+      "enabled": true,
+      "notes": "Developer-dashboard submission with a review period; airdrops and incentives tracked through metrics."
+    },
+    {
+      "code": "DAPP_DIRECTORIES",
+      "name": "Dapp directories",
+      "category": "directory",
+      "posting_mode": "manual",
+      "markup": "plain",
+      "enabled": true,
+      "notes": "Other dapp directories, one target each."
+    },
+    {
+      "code": "AIRDROP_DIRECTORIES",
+      "name": "Airdrop directories",
+      "category": "directory",
+      "posting_mode": "manual",
+      "markup": "plain",
+      "enabled": true,
+      "notes": "Listings of incentive programmes, one target each."
+    },
+    {
+      "code": "ONCHAIN_BADGES",
+      "name": "On-chain badges",
+      "category": "onchain",
+      "posting_mode": "manual",
+      "markup": "plain",
+      "enabled": true,
+      "notes": "Badges and attestations; the instance records object IDs or explorer URLs."
+    },
+    {
+      "code": "CRYPTO_AD_NETWORKS",
+      "name": "Crypto ad networks",
+      "category": "ad_network",
+      "posting_mode": "manual",
+      "markup": "plain",
+      "cost_model": {
+        "currency": "USD",
+        "note": "per-network minimums differ; every budget is 0 until the operator raises it"
+      },
+      "enabled": true,
+      "notes": "Campaigns tracked manually (metrics entered by hand), one target per network."
+    },
+    {
+      "code": "WEB3_AD_NETWORKS",
+      "name": "Web3 ad networks",
+      "category": "ad_network",
+      "posting_mode": "manual",
+      "markup": "plain",
+      "cost_model": {
+        "currency": "USD",
+        "note": "per-network minimums differ; every budget is 0 until the operator raises it"
+      },
+      "enabled": true,
+      "notes": "Campaigns tracked manually, one target per network."
+    },
+    {
+      "code": "BRAVE_ADS",
+      "name": "Brave Ads",
+      "category": "ad_network",
+      "posting_mode": "manual",
+      "markup": "plain",
+      "base_url": "https://brave.com",
+      "cost_model": {
+        "currency": "USD",
+        "note": "self-serve minimum spend applies (sources disagree; verify)"
+      },
+      "enabled": true,
+      "notes": "Self-serve campaigns, tracked manually."
+    },
+    {
+      "code": "SUI_FOUNDATION",
+      "name": "Sui Foundation",
+      "category": "partnership",
+      "posting_mode": "manual",
+      "markup": "plain",
+      "enabled": true,
+      "notes": "Co-marketing and ecosystem programmes."
+    },
+    {
+      "code": "AGENCIES",
+      "name": "Agencies",
+      "category": "partnership",
+      "posting_mode": "manual",
+      "markup": "plain",
+      "enabled": true,
+      "notes": "Marketing or PR agencies, one target each."
+    },
+    {
+      "code": "MCP_REGISTRY",
+      "name": "MCP Registry",
+      "category": "registry",
+      "posting_mode": "manual",
+      "markup": "plain",
+      "base_url": "https://registry.modelcontextprotocol.io",
+      "enabled": true,
+      "notes": "Metadata only: publish the package first, then server.json with mcp-publisher (from CI). Namespace proven by GitHub or a domain."
+    },
+    {
+      "code": "MCP_DIRECTORIES",
+      "name": "MCP directories",
+      "category": "registry",
+      "posting_mode": "manual",
+      "markup": "plain",
+      "enabled": true,
+      "notes": "Aggregators that crawl the registry and let the owner claim a listing; one target each."
+    },
+    {
+      "code": "AGENT_DIRECTORIES",
+      "name": "Agent directories",
+      "category": "registry",
+      "posting_mode": "manual",
+      "markup": "plain",
+      "enabled": true,
+      "notes": "Reviewed connector and app directories of AI assistants."
+    },
+    {
+      "code": "HUGGING_FACE",
+      "name": "Hugging Face",
+      "category": "registry",
+      "posting_mode": "manual",
+      "markup": "plain",
+      "base_url": "https://huggingface.co",
+      "enabled": true,
+      "notes": "Spaces (a Gradio app can expose an MCP server)."
+    },
+    {
+      "code": "MOVE_REGISTRY",
+      "name": "Move Registry (MVR)",
+      "category": "registry",
+      "posting_mode": "manual",
+      "markup": "plain",
+      "base_url": "https://www.moveregistry.com",
+      "enabled": true,
+      "notes": "Mainnet only; names need a SuiNS name."
+    },
+    {
+      "code": "SOURCE_VERIFICATION",
+      "name": "Package source verification",
+      "category": "registry",
+      "posting_mode": "manual",
+      "markup": "plain",
+      "enabled": true,
+      "notes": "Move package source verification on explorers; needs git-based dependencies."
+    },
+    {
+      "code": "AWESOME_LISTS",
+      "name": "Awesome lists",
+      "category": "registry",
+      "posting_mode": "manual",
+      "markup": "markdown",
+      "base_url": "https://github.com",
+      "enabled": true,
+      "notes": "Curated lists that accept pull requests, one target each."
+    },
+    {
+      "code": "WALRUS_SITES",
+      "name": "Walrus Sites",
+      "category": "owned_channel",
+      "posting_mode": "manual",
+      "markup": "plain",
+      "enabled": true,
+      "notes": "Trustless mirrors of the frontends (mainnet sites with a SuiNS name are served by wal.app)."
+    },
+    {
+      "code": "DOCS_AUTODOC",
+      "name": "Documentation (generated)",
+      "category": "internal",
+      "posting_mode": "none",
+      "markup": "markdown",
+      "enabled": true,
+      "notes": "Tracking only: documentation generated from the repositories."
+    },
+    {
+      "code": "ADMIN_BOT",
+      "name": "Hub publisher",
+      "category": "internal",
+      "posting_mode": "none",
+      "markup": "plain",
+      "enabled": true,
+      "notes": "The hub's own publishing worker, recorded for provenance."
+    },
+    {
+      "code": "AUTOMATION_FRAMEWORKS",
+      "name": "Automation frameworks",
+      "category": "internal",
+      "posting_mode": "none",
+      "markup": "plain",
+      "enabled": true,
+      "notes": "IFTTT, Zapier, n8n and similar, which consume the owned feeds (nothing is pushed to them)."
+    }
+  ]
+}

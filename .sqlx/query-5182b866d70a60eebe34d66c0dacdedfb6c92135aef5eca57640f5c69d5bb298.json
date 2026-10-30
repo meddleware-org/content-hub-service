@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE hub.platform_targets SET config = jsonb_set(config, ARRAY[$2::text], $3::jsonb, true) WHERE id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Jsonb"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "5182b866d70a60eebe34d66c0dacdedfb6c92135aef5eca57640f5c69d5bb298"
+}

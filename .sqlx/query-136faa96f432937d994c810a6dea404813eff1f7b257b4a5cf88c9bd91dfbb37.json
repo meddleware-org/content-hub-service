@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT count(*) AS \"n!\" FROM hub.task_dependencies d JOIN hub.tasks t ON t.id = d.depends_on_task_id\n            WHERE d.task_id = $1 AND t.status <> 'done'",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "n!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "136faa96f432937d994c810a6dea404813eff1f7b257b4a5cf88c9bd91dfbb37"
+}

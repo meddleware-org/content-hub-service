@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE hub.platform_instances SET next_attempt_at = $2, last_error = $3 WHERE id = $1 AND status = 'queued'",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Timestamptz",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "e48d30c025a4123b677abb308f971bf87b3de686afa56a0b3a7bb4c276255000"
+}

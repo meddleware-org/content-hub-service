@@ -1,0 +1,1568 @@
+{
+  "counting": [
+    {
+      "count": 11,
+      "mention_local_part": false,
+      "method": "bytes",
+      "text": "hello world",
+      "url_weight": null
+    },
+    {
+      "count": 18,
+      "mention_local_part": false,
+      "method": "bytes",
+      "text": "aé😀👩‍💻",
+      "url_weight": null
+    },
+    {
+      "count": 24,
+      "mention_local_part": false,
+      "method": "bytes",
+      "text": "日本語のテキスト",
+      "url_weight": null
+    },
+    {
+      "count": 9,
+      "mention_local_part": false,
+      "method": "bytes",
+      "text": "é café",
+      "url_weight": null
+    },
+    {
+      "count": 48,
+      "mention_local_part": false,
+      "method": "bytes",
+      "text": "see https://example.org/a/very/long/path?x=1 now",
+      "url_weight": null
+    },
+    {
+      "count": 33,
+      "mention_local_part": false,
+      "method": "bytes",
+      "text": "hi @alice@example.social and @bob",
+      "url_weight": null
+    },
+    {
+      "count": 19,
+      "mention_local_part": false,
+      "method": "bytes",
+      "text": "mail me@example.org",
+      "url_weight": null
+    },
+    {
+      "count": 34,
+      "mention_local_part": false,
+      "method": "bytes",
+      "text": "🇬🇧 flags and 1️⃣ keycaps",
+      "url_weight": null
+    },
+    {
+      "count": 17,
+      "mention_local_part": false,
+      "method": "bytes",
+      "text": "tabs\tand\nnewlines",
+      "url_weight": null
+    },
+    {
+      "count": 36,
+      "mention_local_part": false,
+      "method": "bytes",
+      "text": "“quotes” — dashes … ellipsis",
+      "url_weight": null
+    },
+    {
+      "count": 300,
+      "mention_local_part": false,
+      "method": "bytes",
+      "text": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "url_weight": null
+    },
+    {
+      "count": 11,
+      "mention_local_part": false,
+      "method": "codepoints",
+      "text": "hello world",
+      "url_weight": null
+    },
+    {
+      "count": 6,
+      "mention_local_part": false,
+      "method": "codepoints",
+      "text": "aé😀👩‍💻",
+      "url_weight": null
+    },
+    {
+      "count": 8,
+      "mention_local_part": false,
+      "method": "codepoints",
+      "text": "日本語のテキスト",
+      "url_weight": null
+    },
+    {
+      "count": 7,
+      "mention_local_part": false,
+      "method": "codepoints",
+      "text": "é café",
+      "url_weight": null
+    },
+    {
+      "count": 48,
+      "mention_local_part": false,
+      "method": "codepoints",
+      "text": "see https://example.org/a/very/long/path?x=1 now",
+      "url_weight": null
+    },
+    {
+      "count": 33,
+      "mention_local_part": false,
+      "method": "codepoints",
+      "text": "hi @alice@example.social and @bob",
+      "url_weight": null
+    },
+    {
+      "count": 19,
+      "mention_local_part": false,
+      "method": "codepoints",
+      "text": "mail me@example.org",
+      "url_weight": null
+    },
+    {
+      "count": 24,
+      "mention_local_part": false,
+      "method": "codepoints",
+      "text": "🇬🇧 flags and 1️⃣ keycaps",
+      "url_weight": null
+    },
+    {
+      "count": 17,
+      "mention_local_part": false,
+      "method": "codepoints",
+      "text": "tabs\tand\nnewlines",
+      "url_weight": null
+    },
+    {
+      "count": 28,
+      "mention_local_part": false,
+      "method": "codepoints",
+      "text": "“quotes” — dashes … ellipsis",
+      "url_weight": null
+    },
+    {
+      "count": 300,
+      "mention_local_part": false,
+      "method": "codepoints",
+      "text": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "url_weight": null
+    },
+    {
+      "count": 11,
+      "mention_local_part": false,
+      "method": "utf16",
+      "text": "hello world",
+      "url_weight": null
+    },
+    {
+      "count": 9,
+      "mention_local_part": false,
+      "method": "utf16",
+      "text": "aé😀👩‍💻",
+      "url_weight": null
+    },
+    {
+      "count": 8,
+      "mention_local_part": false,
+      "method": "utf16",
+      "text": "日本語のテキスト",
+      "url_weight": null
+    },
+    {
+      "count": 7,
+      "mention_local_part": false,
+      "method": "utf16",
+      "text": "é café",
+      "url_weight": null
+    },
+    {
+      "count": 48,
+      "mention_local_part": false,
+      "method": "utf16",
+      "text": "see https://example.org/a/very/long/path?x=1 now",
+      "url_weight": null
+    },
+    {
+      "count": 33,
+      "mention_local_part": false,
+      "method": "utf16",
+      "text": "hi @alice@example.social and @bob",
+      "url_weight": null
+    },
+    {
+      "count": 19,
+      "mention_local_part": false,
+      "method": "utf16",
+      "text": "mail me@example.org",
+      "url_weight": null
+    },
+    {
+      "count": 26,
+      "mention_local_part": false,
+      "method": "utf16",
+      "text": "🇬🇧 flags and 1️⃣ keycaps",
+      "url_weight": null
+    },
+    {
+      "count": 17,
+      "mention_local_part": false,
+      "method": "utf16",
+      "text": "tabs\tand\nnewlines",
+      "url_weight": null
+    },
+    {
+      "count": 28,
+      "mention_local_part": false,
+      "method": "utf16",
+      "text": "“quotes” — dashes … ellipsis",
+      "url_weight": null
+    },
+    {
+      "count": 300,
+      "mention_local_part": false,
+      "method": "utf16",
+      "text": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "url_weight": null
+    },
+    {
+      "count": 11,
+      "mention_local_part": false,
+      "method": "graphemes",
+      "text": "hello world",
+      "url_weight": null
+    },
+    {
+      "count": 4,
+      "mention_local_part": false,
+      "method": "graphemes",
+      "text": "aé😀👩‍💻",
+      "url_weight": null
+    },
+    {
+      "count": 8,
+      "mention_local_part": false,
+      "method": "graphemes",
+      "text": "日本語のテキスト",
+      "url_weight": null
+    },
+    {
+      "count": 6,
+      "mention_local_part": false,
+      "method": "graphemes",
+      "text": "é café",
+      "url_weight": null
+    },
+    {
+      "count": 48,
+      "mention_local_part": false,
+      "method": "graphemes",
+      "text": "see https://example.org/a/very/long/path?x=1 now",
+      "url_weight": null
+    },
+    {
+      "count": 33,
+      "mention_local_part": false,
+      "method": "graphemes",
+      "text": "hi @alice@example.social and @bob",
+      "url_weight": null
+    },
+    {
+      "count": 19,
+      "mention_local_part": false,
+      "method": "graphemes",
+      "text": "mail me@example.org",
+      "url_weight": null
+    },
+    {
+      "count": 21,
+      "mention_local_part": false,
+      "method": "graphemes",
+      "text": "🇬🇧 flags and 1️⃣ keycaps",
+      "url_weight": null
+    },
+    {
+      "count": 17,
+      "mention_local_part": false,
+      "method": "graphemes",
+      "text": "tabs\tand\nnewlines",
+      "url_weight": null
+    },
+    {
+      "count": 28,
+      "mention_local_part": false,
+      "method": "graphemes",
+      "text": "“quotes” — dashes … ellipsis",
+      "url_weight": null
+    },
+    {
+      "count": 300,
+      "mention_local_part": false,
+      "method": "graphemes",
+      "text": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "url_weight": null
+    },
+    {
+      "count": 11,
+      "mention_local_part": false,
+      "method": "x_weighted",
+      "text": "hello world",
+      "url_weight": null
+    },
+    {
+      "count": 6,
+      "mention_local_part": false,
+      "method": "x_weighted",
+      "text": "aé😀👩‍💻",
+      "url_weight": null
+    },
+    {
+      "count": 16,
+      "mention_local_part": false,
+      "method": "x_weighted",
+      "text": "日本語のテキスト",
+      "url_weight": null
+    },
+    {
+      "count": 6,
+      "mention_local_part": false,
+      "method": "x_weighted",
+      "text": "é café",
+      "url_weight": null
+    },
+    {
+      "count": 31,
+      "mention_local_part": false,
+      "method": "x_weighted",
+      "text": "see https://example.org/a/very/long/path?x=1 now",
+      "url_weight": null
+    },
+    {
+      "count": 33,
+      "mention_local_part": false,
+      "method": "x_weighted",
+      "text": "hi @alice@example.social and @bob",
+      "url_weight": null
+    },
+    {
+      "count": 19,
+      "mention_local_part": false,
+      "method": "x_weighted",
+      "text": "mail me@example.org",
+      "url_weight": null
+    },
+    {
+      "count": 23,
+      "mention_local_part": false,
+      "method": "x_weighted",
+      "text": "🇬🇧 flags and 1️⃣ keycaps",
+      "url_weight": null
+    },
+    {
+      "count": 17,
+      "mention_local_part": false,
+      "method": "x_weighted",
+      "text": "tabs\tand\nnewlines",
+      "url_weight": null
+    },
+    {
+      "count": 29,
+      "mention_local_part": false,
+      "method": "x_weighted",
+      "text": "“quotes” — dashes … ellipsis",
+      "url_weight": null
+    },
+    {
+      "count": 300,
+      "mention_local_part": false,
+      "method": "x_weighted",
+      "text": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "url_weight": null
+    },
+    {
+      "count": 11,
+      "mention_local_part": true,
+      "method": "graphemes",
+      "text": "hello world",
+      "url_weight": 23
+    },
+    {
+      "count": 4,
+      "mention_local_part": true,
+      "method": "graphemes",
+      "text": "aé😀👩‍💻",
+      "url_weight": 23
+    },
+    {
+      "count": 8,
+      "mention_local_part": true,
+      "method": "graphemes",
+      "text": "日本語のテキスト",
+      "url_weight": 23
+    },
+    {
+      "count": 6,
+      "mention_local_part": true,
+      "method": "graphemes",
+      "text": "é café",
+      "url_weight": 23
+    },
+    {
+      "count": 31,
+      "mention_local_part": true,
+      "method": "graphemes",
+      "text": "see https://example.org/a/very/long/path?x=1 now",
+      "url_weight": 23
+    },
+    {
+      "count": 18,
+      "mention_local_part": true,
+      "method": "graphemes",
+      "text": "hi @alice@example.social and @bob",
+      "url_weight": 23
+    },
+    {
+      "count": 19,
+      "mention_local_part": true,
+      "method": "graphemes",
+      "text": "mail me@example.org",
+      "url_weight": 23
+    },
+    {
+      "count": 21,
+      "mention_local_part": true,
+      "method": "graphemes",
+      "text": "🇬🇧 flags and 1️⃣ keycaps",
+      "url_weight": 23
+    },
+    {
+      "count": 17,
+      "mention_local_part": true,
+      "method": "graphemes",
+      "text": "tabs\tand\nnewlines",
+      "url_weight": 23
+    },
+    {
+      "count": 28,
+      "mention_local_part": true,
+      "method": "graphemes",
+      "text": "“quotes” — dashes … ellipsis",
+      "url_weight": 23
+    },
+    {
+      "count": 300,
+      "mention_local_part": true,
+      "method": "graphemes",
+      "text": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "url_weight": 23
+    }
+  ],
+  "description": "Golden vectors shared by @meddleware/content-hub-client (TypeScript) and content-hub-service (Rust). Generated by the Rust implementation (cargo run -p content-hub-core --example gen-vectors); published from the client package; the service checks its copy against the published file. Positions are code-point offsets.",
+  "enumerations": {
+    "delivery_attempts.outcome": [
+      "success",
+      "failed",
+      "unknown",
+      "rate_limited",
+      "validation_error",
+      "dry_run"
+    ],
+    "platform_definitions.category": [
+      "social",
+      "forum",
+      "directory",
+      "ad_network",
+      "event",
+      "content",
+      "onchain",
+      "partnership",
+      "registry",
+      "owned_channel",
+      "internal"
+    ],
+    "platform_definitions.counting_method": [
+      "x_weighted",
+      "graphemes",
+      "utf16",
+      "codepoints",
+      "bytes"
+    ],
+    "platform_definitions.markup": [
+      "plain",
+      "markdown",
+      "discord_md",
+      "telegram_html",
+      "bbcode"
+    ],
+    "platform_definitions.posting_mode": [
+      "api",
+      "webhook",
+      "feed",
+      "manual",
+      "none"
+    ],
+    "platform_instances.external_status": [
+      "proposed",
+      "confirmed",
+      "published",
+      "submitted",
+      "in_review",
+      "approved",
+      "rejected"
+    ],
+    "platform_instances.status": [
+      "planned",
+      "queued",
+      "sending",
+      "posted",
+      "failed",
+      "unknown",
+      "manual_required",
+      "cancelled"
+    ],
+    "posts.status": [
+      "draft",
+      "ready",
+      "archived"
+    ],
+    "roadmap_items.item_type": [
+      "infra",
+      "social",
+      "content",
+      "listing",
+      "ad_campaign",
+      "research",
+      "engineering",
+      "bot_discoverability",
+      "trustless",
+      "other"
+    ],
+    "roadmap_items.status": [
+      "planned",
+      "in_progress",
+      "done",
+      "cancelled"
+    ],
+    "snapshots.network": [
+      "localnet",
+      "testnet",
+      "mainnet"
+    ],
+    "spend_caps.scope": [
+      "total",
+      "platform",
+      "target"
+    ],
+    "spend_ledger.kind": [
+      "reserve",
+      "settle",
+      "release"
+    ],
+    "task_links.link_kind": [
+      "post",
+      "platform_instance",
+      "external"
+    ],
+    "tasks.status": [
+      "planned",
+      "ready",
+      "in_progress",
+      "done",
+      "blocked"
+    ],
+    "tasks.task_type": [
+      "ACCOUNT_SETUP",
+      "SOCIAL_POST",
+      "BLOG_ARTICLE",
+      "LISTING_SUBMISSION",
+      "AD_CAMPAIGN",
+      "KOL_CAMPAIGN",
+      "ENGINEERING",
+      "RESEARCH",
+      "OTHER"
+    ]
+  },
+  "instance_transitions": [
+    [
+      "planned",
+      "queued",
+      "operator"
+    ],
+    [
+      "planned",
+      "manual_required",
+      "operator"
+    ],
+    [
+      "planned",
+      "cancelled",
+      "operator"
+    ],
+    [
+      "queued",
+      "planned",
+      "operator"
+    ],
+    [
+      "queued",
+      "sending",
+      "worker"
+    ],
+    [
+      "queued",
+      "manual_required",
+      "worker"
+    ],
+    [
+      "queued",
+      "cancelled",
+      "operator"
+    ],
+    [
+      "sending",
+      "queued",
+      "worker"
+    ],
+    [
+      "sending",
+      "posted",
+      "worker"
+    ],
+    [
+      "sending",
+      "failed",
+      "worker"
+    ],
+    [
+      "sending",
+      "unknown",
+      "worker"
+    ],
+    [
+      "sending",
+      "unknown",
+      "janitor"
+    ],
+    [
+      "failed",
+      "queued",
+      "operator"
+    ],
+    [
+      "failed",
+      "manual_required",
+      "operator"
+    ],
+    [
+      "failed",
+      "cancelled",
+      "operator"
+    ],
+    [
+      "unknown",
+      "posted",
+      "operator"
+    ],
+    [
+      "unknown",
+      "failed",
+      "operator"
+    ],
+    [
+      "manual_required",
+      "planned",
+      "operator"
+    ],
+    [
+      "manual_required",
+      "posted",
+      "operator"
+    ],
+    [
+      "manual_required",
+      "cancelled",
+      "operator"
+    ],
+    [
+      "cancelled",
+      "planned",
+      "operator"
+    ]
+  ],
+  "limits": [
+    {
+      "input": {
+        "body": "0123456789",
+        "counting_method": "codepoints",
+        "markup": "plain",
+        "primary_limit": 10,
+        "secondary_limits": {},
+        "target_config": {},
+        "title": "T"
+      },
+      "result": {
+        "bytes": 10,
+        "counted": 10,
+        "fits": true,
+        "limits": {
+          "bytes": null,
+          "mention_local_part": false,
+          "method": "codepoints",
+          "primary": 10,
+          "title": null,
+          "url_weight": null
+        },
+        "payload": "0123456789",
+        "title_counted": 1
+      }
+    },
+    {
+      "input": {
+        "body": "0123456789a",
+        "counting_method": "codepoints",
+        "markup": "plain",
+        "primary_limit": 10,
+        "secondary_limits": {},
+        "target_config": {},
+        "title": "T"
+      },
+      "result": {
+        "bytes": 11,
+        "counted": 11,
+        "fits": false,
+        "limits": {
+          "bytes": null,
+          "mention_local_part": false,
+          "method": "codepoints",
+          "primary": 10,
+          "title": null,
+          "url_weight": null
+        },
+        "payload": "0123456789a",
+        "title_counted": 1
+      }
+    },
+    {
+      "input": {
+        "body": "Read https://example.org/a/very/long/path?x=1 now",
+        "counting_method": "x_weighted",
+        "markup": "plain",
+        "primary_limit": 280,
+        "secondary_limits": {
+          "url_weight": 23
+        },
+        "target_config": {},
+        "title": "T"
+      },
+      "result": {
+        "bytes": 49,
+        "counted": 32,
+        "fits": true,
+        "limits": {
+          "bytes": null,
+          "mention_local_part": false,
+          "method": "x_weighted",
+          "primary": 280,
+          "title": null,
+          "url_weight": 23
+        },
+        "payload": "Read https://example.org/a/very/long/path?x=1 now",
+        "title_counted": 1
+      }
+    },
+    {
+      "input": {
+        "body": "héllo wörld ünïcode text",
+        "counting_method": "graphemes",
+        "markup": "plain",
+        "primary_limit": 300,
+        "secondary_limits": {
+          "bytes": 20
+        },
+        "target_config": {},
+        "title": "T"
+      },
+      "result": {
+        "bytes": 28,
+        "counted": 24,
+        "fits": false,
+        "limits": {
+          "bytes": 20,
+          "mention_local_part": false,
+          "method": "graphemes",
+          "primary": 300,
+          "title": null,
+          "url_weight": null
+        },
+        "payload": "héllo wörld ünïcode text",
+        "title_counted": 1
+      }
+    },
+    {
+      "input": {
+        "body": "@someone@mastodon.example see https://example.org/x",
+        "counting_method": "graphemes",
+        "markup": "plain",
+        "primary_limit": 500,
+        "secondary_limits": {
+          "limit_source": "instance",
+          "mention_local_part": 1,
+          "url_weight": 23
+        },
+        "target_config": {},
+        "title": "T"
+      },
+      "result": {
+        "bytes": 51,
+        "counted": 36,
+        "fits": true,
+        "limits": {
+          "bytes": null,
+          "mention_local_part": true,
+          "method": "graphemes",
+          "primary": 500,
+          "title": null,
+          "url_weight": 23
+        },
+        "payload": "@someone@mastodon.example see https://example.org/x",
+        "title_counted": 1
+      }
+    },
+    {
+      "input": {
+        "body": "see https://example.org/x",
+        "counting_method": "graphemes",
+        "markup": "plain",
+        "primary_limit": 500,
+        "secondary_limits": {
+          "mention_local_part": 1,
+          "url_weight": 23
+        },
+        "target_config": {
+          "instance_limits": {
+            "characters_reserved_per_url": 30,
+            "max_characters": 20
+          }
+        },
+        "title": "T"
+      },
+      "result": {
+        "bytes": 25,
+        "counted": 34,
+        "fits": false,
+        "limits": {
+          "bytes": null,
+          "mention_local_part": true,
+          "method": "graphemes",
+          "primary": 20,
+          "title": null,
+          "url_weight": 30
+        },
+        "payload": "see https://example.org/x",
+        "title_counted": 1
+      }
+    },
+    {
+      "input": {
+        "body": "**bold** and some more words here",
+        "counting_method": "codepoints",
+        "markup": "discord_md",
+        "primary_limit": 2000,
+        "secondary_limits": {
+          "embed_description": 30,
+          "embeds_max": 10
+        },
+        "target_config": {
+          "mode": "embed"
+        },
+        "title": "Title"
+      },
+      "result": {
+        "bytes": 33,
+        "counted": 33,
+        "fits": false,
+        "limits": {
+          "bytes": null,
+          "mention_local_part": false,
+          "method": "codepoints",
+          "primary": 30,
+          "title": null,
+          "url_weight": null
+        },
+        "payload": "**bold** and some more words here",
+        "title_counted": 5
+      }
+    },
+    {
+      "input": {
+        "body": "**bold** and some more words here",
+        "counting_method": "codepoints",
+        "markup": "discord_md",
+        "primary_limit": 20,
+        "secondary_limits": {
+          "embed_description": 30
+        },
+        "target_config": {},
+        "title": "Title"
+      },
+      "result": {
+        "bytes": 33,
+        "counted": 33,
+        "fits": false,
+        "limits": {
+          "bytes": null,
+          "mention_local_part": false,
+          "method": "codepoints",
+          "primary": 20,
+          "title": null,
+          "url_weight": null
+        },
+        "payload": "**bold** and some more words here",
+        "title_counted": 5
+      }
+    },
+    {
+      "input": {
+        "body": "**abcd**",
+        "counting_method": "utf16",
+        "markup": "telegram_html",
+        "primary_limit": 4,
+        "secondary_limits": {},
+        "target_config": {},
+        "title": "T"
+      },
+      "result": {
+        "bytes": 11,
+        "counted": 4,
+        "fits": true,
+        "limits": {
+          "bytes": null,
+          "mention_local_part": false,
+          "method": "utf16",
+          "primary": 4,
+          "title": null,
+          "url_weight": null
+        },
+        "payload": "<b>abcd</b>",
+        "title_counted": 1
+      }
+    },
+    {
+      "input": {
+        "body": "short",
+        "counting_method": "codepoints",
+        "markup": "plain",
+        "primary_limit": 100,
+        "secondary_limits": {
+          "title": 3
+        },
+        "target_config": {},
+        "title": "Title"
+      },
+      "result": {
+        "bytes": 5,
+        "counted": 5,
+        "fits": false,
+        "limits": {
+          "bytes": null,
+          "mention_local_part": false,
+          "method": "codepoints",
+          "primary": 100,
+          "title": 3,
+          "url_weight": null
+        },
+        "payload": "short",
+        "title_counted": 5
+      }
+    },
+    {
+      "input": {
+        "body": "*free* text [link](https://example.org)",
+        "counting_method": null,
+        "markup": "markdown",
+        "primary_limit": null,
+        "secondary_limits": {},
+        "target_config": {},
+        "title": "No counting method"
+      },
+      "result": {
+        "limits": null,
+        "payload": "*free* text [link](https://example.org)"
+      }
+    }
+  ],
+  "rendering": [
+    {
+      "markup": "plain",
+      "payload": "plain text",
+      "source": "plain text",
+      "visible": "plain text"
+    },
+    {
+      "markup": "markdown",
+      "payload": "plain text",
+      "source": "plain text",
+      "visible": "plain text"
+    },
+    {
+      "markup": "discord_md",
+      "payload": "plain text",
+      "source": "plain text",
+      "visible": "plain text"
+    },
+    {
+      "markup": "telegram_html",
+      "payload": "plain text",
+      "source": "plain text",
+      "visible": "plain text"
+    },
+    {
+      "markup": "bbcode",
+      "payload": "plain text",
+      "source": "plain text",
+      "visible": "plain text"
+    },
+    {
+      "markup": "plain",
+      "payload": "Hi & <b> docs (https://x.org/a?b=1&c=2) x<y\n\n• item",
+      "source": "**Hi** & <b> [docs](https://x.org/a?b=1&c=2) `x<y`\n\n- item",
+      "visible": "Hi & <b> docs (https://x.org/a?b=1&c=2) x<y\n\n• item"
+    },
+    {
+      "markup": "markdown",
+      "payload": "**Hi** & <b> [docs](https://x.org/a?b=1&c=2) `x<y`\n\n- item",
+      "source": "**Hi** & <b> [docs](https://x.org/a?b=1&c=2) `x<y`\n\n- item",
+      "visible": "**Hi** & <b> [docs](https://x.org/a?b=1&c=2) `x<y`\n\n- item"
+    },
+    {
+      "markup": "discord_md",
+      "payload": "**Hi** & <b> [docs](https://x.org/a?b=1&c=2) `x<y`\n\n- item",
+      "source": "**Hi** & <b> [docs](https://x.org/a?b=1&c=2) `x<y`\n\n- item",
+      "visible": "**Hi** & <b> [docs](https://x.org/a?b=1&c=2) `x<y`\n\n- item"
+    },
+    {
+      "markup": "telegram_html",
+      "payload": "<b>Hi</b> &amp; &lt;b&gt; <a href=\"https://x.org/a?b=1&amp;c=2\">docs</a> <code>x&lt;y</code>\n\n• item",
+      "source": "**Hi** & <b> [docs](https://x.org/a?b=1&c=2) `x<y`\n\n- item",
+      "visible": "Hi & <b> docs x<y\n\n• item"
+    },
+    {
+      "markup": "bbcode",
+      "payload": "[b]Hi[/b] & <b> [url=https://x.org/a?b=1&c=2]docs[/url] [code]x<y[/code]\n\n• item",
+      "source": "**Hi** & <b> [docs](https://x.org/a?b=1&c=2) `x<y`\n\n- item",
+      "visible": "[b]Hi[/b] & <b> [url=https://x.org/a?b=1&c=2]docs[/url] [code]x<y[/code]\n\n• item"
+    },
+    {
+      "markup": "plain",
+      "payload": "2 * 3 = 6 and **unclosed",
+      "source": "2 \\* 3 = 6 and **unclosed",
+      "visible": "2 * 3 = 6 and **unclosed"
+    },
+    {
+      "markup": "markdown",
+      "payload": "2 \\* 3 = 6 and \\*\\*unclosed",
+      "source": "2 \\* 3 = 6 and **unclosed",
+      "visible": "2 * 3 = 6 and **unclosed"
+    },
+    {
+      "markup": "discord_md",
+      "payload": "2 \\* 3 = 6 and \\*\\*unclosed",
+      "source": "2 \\* 3 = 6 and **unclosed",
+      "visible": "2 * 3 = 6 and **unclosed"
+    },
+    {
+      "markup": "telegram_html",
+      "payload": "2 * 3 = 6 and **unclosed",
+      "source": "2 \\* 3 = 6 and **unclosed",
+      "visible": "2 * 3 = 6 and **unclosed"
+    },
+    {
+      "markup": "bbcode",
+      "payload": "2 * 3 = 6 and **unclosed",
+      "source": "2 \\* 3 = 6 and **unclosed",
+      "visible": "2 * 3 = 6 and **unclosed"
+    },
+    {
+      "markup": "plain",
+      "payload": "emph with https://example.org/path) trailing.",
+      "source": "*emph* with https://example.org/path) trailing.",
+      "visible": "emph with https://example.org/path) trailing."
+    },
+    {
+      "markup": "markdown",
+      "payload": "*emph* with https://example.org/path) trailing.",
+      "source": "*emph* with https://example.org/path) trailing.",
+      "visible": "*emph* with https://example.org/path) trailing."
+    },
+    {
+      "markup": "discord_md",
+      "payload": "*emph* with https://example.org/path) trailing.",
+      "source": "*emph* with https://example.org/path) trailing.",
+      "visible": "*emph* with https://example.org/path) trailing."
+    },
+    {
+      "markup": "telegram_html",
+      "payload": "<i>emph</i> with https://example.org/path) trailing.",
+      "source": "*emph* with https://example.org/path) trailing.",
+      "visible": "emph with https://example.org/path) trailing."
+    },
+    {
+      "markup": "bbcode",
+      "payload": "[i]emph[/i] with https://example.org/path) trailing.",
+      "source": "*emph* with https://example.org/path) trailing.",
+      "visible": "[i]emph[/i] with https://example.org/path) trailing."
+    },
+    {
+      "markup": "plain",
+      "payload": "• one\n• two\n\nPara with a link (https://example.org) and bold nested text",
+      "source": "- one\n- two\n\nPara with [a link](https://example.org) and **bold *nested* text**",
+      "visible": "• one\n• two\n\nPara with a link (https://example.org) and bold nested text"
+    },
+    {
+      "markup": "markdown",
+      "payload": "- one\n- two\n\nPara with [a link](https://example.org) and **bold *nested* text**",
+      "source": "- one\n- two\n\nPara with [a link](https://example.org) and **bold *nested* text**",
+      "visible": "- one\n- two\n\nPara with [a link](https://example.org) and **bold *nested* text**"
+    },
+    {
+      "markup": "discord_md",
+      "payload": "- one\n- two\n\nPara with [a link](https://example.org) and **bold *nested* text**",
+      "source": "- one\n- two\n\nPara with [a link](https://example.org) and **bold *nested* text**",
+      "visible": "- one\n- two\n\nPara with [a link](https://example.org) and **bold *nested* text**"
+    },
+    {
+      "markup": "telegram_html",
+      "payload": "• one\n• two\n\nPara with <a href=\"https://example.org\">a link</a> and <b>bold <i>nested</i> text</b>",
+      "source": "- one\n- two\n\nPara with [a link](https://example.org) and **bold *nested* text**",
+      "visible": "• one\n• two\n\nPara with a link and bold nested text"
+    },
+    {
+      "markup": "bbcode",
+      "payload": "• one\n• two\n\nPara with [url=https://example.org]a link[/url] and [b]bold [i]nested[/i] text[/b]",
+      "source": "- one\n- two\n\nPara with [a link](https://example.org) and **bold *nested* text**",
+      "visible": "• one\n• two\n\nPara with [url=https://example.org]a link[/url] and [b]bold [i]nested[/i] text[/b]"
+    },
+    {
+      "markup": "plain",
+      "payload": "<script>alert(1)</script> & \"quotes\"",
+      "source": "<script>alert(1)</script> & \"quotes\"",
+      "visible": "<script>alert(1)</script> & \"quotes\""
+    },
+    {
+      "markup": "markdown",
+      "payload": "<script>alert(1)</script> & \"quotes\"",
+      "source": "<script>alert(1)</script> & \"quotes\"",
+      "visible": "<script>alert(1)</script> & \"quotes\""
+    },
+    {
+      "markup": "discord_md",
+      "payload": "<script>alert(1)</script> & \"quotes\"",
+      "source": "<script>alert(1)</script> & \"quotes\"",
+      "visible": "<script>alert(1)</script> & \"quotes\""
+    },
+    {
+      "markup": "telegram_html",
+      "payload": "&lt;script&gt;alert(1)&lt;/script&gt; &amp; &quot;quotes&quot;",
+      "source": "<script>alert(1)</script> & \"quotes\"",
+      "visible": "<script>alert(1)</script> & \"quotes\""
+    },
+    {
+      "markup": "bbcode",
+      "payload": "<script>alert(1)</script> & \"quotes\"",
+      "source": "<script>alert(1)</script> & \"quotes\"",
+      "visible": "<script>alert(1)</script> & \"quotes\""
+    },
+    {
+      "markup": "plain",
+      "payload": "line one\nline two\n\nafter many breaks",
+      "source": "line one\nline two\n\n\n\nafter many breaks",
+      "visible": "line one\nline two\n\nafter many breaks"
+    },
+    {
+      "markup": "markdown",
+      "payload": "line one\nline two\n\nafter many breaks",
+      "source": "line one\nline two\n\n\n\nafter many breaks",
+      "visible": "line one\nline two\n\nafter many breaks"
+    },
+    {
+      "markup": "discord_md",
+      "payload": "line one\nline two\n\nafter many breaks",
+      "source": "line one\nline two\n\n\n\nafter many breaks",
+      "visible": "line one\nline two\n\nafter many breaks"
+    },
+    {
+      "markup": "telegram_html",
+      "payload": "line one\nline two\n\nafter many breaks",
+      "source": "line one\nline two\n\n\n\nafter many breaks",
+      "visible": "line one\nline two\n\nafter many breaks"
+    },
+    {
+      "markup": "bbcode",
+      "payload": "line one\nline two\n\nafter many breaks",
+      "source": "line one\nline two\n\n\n\nafter many breaks",
+      "visible": "line one\nline two\n\nafter many breaks"
+    }
+  ],
+  "schema_version": 1,
+  "segmentation": [
+    {
+      "bands": [
+        {
+          "end": 3,
+          "fits": [
+            "short",
+            "long",
+            "all"
+          ],
+          "start": 0
+        },
+        {
+          "end": 7,
+          "fits": [
+            "long",
+            "all"
+          ],
+          "start": 3
+        },
+        {
+          "end": 10,
+          "fits": [
+            "all"
+          ],
+          "start": 7
+        }
+      ],
+      "cuts": [
+        [
+          "short",
+          3
+        ],
+        [
+          "long",
+          7
+        ],
+        [
+          "all",
+          10
+        ]
+      ],
+      "source": "abcdefghij",
+      "targets": [
+        {
+          "id": "short",
+          "limit": 3,
+          "markup": "plain",
+          "method": "codepoints"
+        },
+        {
+          "id": "long",
+          "limit": 7,
+          "markup": "plain",
+          "method": "codepoints"
+        },
+        {
+          "id": "all",
+          "limit": 100,
+          "markup": "plain",
+          "method": "codepoints"
+        }
+      ]
+    },
+    {
+      "bands": [
+        {
+          "end": 3,
+          "fits": [
+            "t"
+          ],
+          "start": 0
+        },
+        {
+          "end": 30,
+          "fits": [],
+          "start": 3
+        }
+      ],
+      "cuts": [
+        [
+          "t",
+          3
+        ]
+      ],
+      "source": "go https://example.org/abc now",
+      "targets": [
+        {
+          "id": "t",
+          "limit": 10,
+          "markup": "plain",
+          "method": "codepoints"
+        }
+      ]
+    },
+    {
+      "bands": [
+        {
+          "end": 2,
+          "fits": [
+            "t",
+            "g"
+          ],
+          "start": 0
+        },
+        {
+          "end": 5,
+          "fits": [
+            "g"
+          ],
+          "start": 2
+        },
+        {
+          "end": 7,
+          "fits": [],
+          "start": 5
+        }
+      ],
+      "cuts": [
+        [
+          "t",
+          2
+        ],
+        [
+          "g",
+          5
+        ]
+      ],
+      "source": "ab👩‍💻cd",
+      "targets": [
+        {
+          "id": "t",
+          "limit": 4,
+          "markup": "plain",
+          "method": "codepoints"
+        },
+        {
+          "id": "g",
+          "limit": 3,
+          "markup": "plain",
+          "method": "graphemes"
+        }
+      ]
+    },
+    {
+      "bands": [
+        {
+          "end": 18,
+          "fits": [
+            "x",
+            "tg",
+            "bsky",
+            "md"
+          ],
+          "start": 0
+        },
+        {
+          "end": 65,
+          "fits": [
+            "tg",
+            "bsky",
+            "md"
+          ],
+          "start": 18
+        },
+        {
+          "end": 84,
+          "fits": [
+            "tg",
+            "md"
+          ],
+          "start": 65
+        },
+        {
+          "end": 125,
+          "fits": [
+            "md"
+          ],
+          "start": 84
+        }
+      ],
+      "cuts": [
+        [
+          "x",
+          18
+        ],
+        [
+          "tg",
+          84
+        ],
+        [
+          "bsky",
+          65
+        ],
+        [
+          "md",
+          125
+        ]
+      ],
+      "source": "**Big news:** the [roadmap](https://example.org/roadmap) is live. 🎉 Read it and tell us what you think — every reply is read.",
+      "targets": [
+        {
+          "id": "x",
+          "limit": 40,
+          "markup": "plain",
+          "method": "x_weighted"
+        },
+        {
+          "id": "tg",
+          "limit": 50,
+          "markup": "telegram_html",
+          "method": "utf16"
+        },
+        {
+          "id": "bsky",
+          "limit": 60,
+          "markup": "plain",
+          "method": "graphemes"
+        },
+        {
+          "id": "md",
+          "limit": 2000,
+          "markup": "discord_md",
+          "method": "codepoints"
+        }
+      ]
+    },
+    {
+      "bands": [
+        {
+          "end": 11,
+          "fits": [
+            "x",
+            "c"
+          ],
+          "start": 0
+        },
+        {
+          "end": 20,
+          "fits": [
+            "c"
+          ],
+          "start": 11
+        },
+        {
+          "end": 36,
+          "fits": [],
+          "start": 20
+        }
+      ],
+      "cuts": [
+        [
+          "x",
+          11
+        ],
+        [
+          "c",
+          20
+        ]
+      ],
+      "source": "日本語のテキストとEnglish text mixed together",
+      "targets": [
+        {
+          "id": "x",
+          "limit": 20,
+          "markup": "plain",
+          "method": "x_weighted"
+        },
+        {
+          "id": "c",
+          "limit": 20,
+          "markup": "plain",
+          "method": "codepoints"
+        }
+      ]
+    },
+    {
+      "bands": [
+        {
+          "end": 3,
+          "fits": [],
+          "start": 0
+        }
+      ],
+      "cuts": [
+        [
+          "none",
+          0
+        ]
+      ],
+      "source": "abc",
+      "targets": [
+        {
+          "id": "none",
+          "limit": 0,
+          "markup": "plain",
+          "method": "codepoints"
+        }
+      ]
+    }
+  ],
+  "task_transitions": [
+    [
+      "planned",
+      "ready"
+    ],
+    [
+      "planned",
+      "in_progress"
+    ],
+    [
+      "planned",
+      "blocked"
+    ],
+    [
+      "ready",
+      "planned"
+    ],
+    [
+      "ready",
+      "in_progress"
+    ],
+    [
+      "ready",
+      "blocked"
+    ],
+    [
+      "in_progress",
+      "ready"
+    ],
+    [
+      "in_progress",
+      "done"
+    ],
+    [
+      "in_progress",
+      "blocked"
+    ],
+    [
+      "done",
+      "in_progress"
+    ],
+    [
+      "blocked",
+      "planned"
+    ],
+    [
+      "blocked",
+      "ready"
+    ],
+    [
+      "blocked",
+      "in_progress"
+    ]
+  ]
+}

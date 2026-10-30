@@ -1,0 +1,232 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO hub.roadmap_items (phase_id, key, item_type, internal_title, internal_description, public_title,\n                                          public_description, visible_human, visible_bot, status, planned_at, due_at, public_due_at)\n           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "hub.roadmap_items",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "phase_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "hub.roadmap_items",
+            "name": "phase_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "key",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "hub.roadmap_items",
+            "name": "key"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "public_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "hub.roadmap_items",
+            "name": "public_id"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "item_type",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "hub.roadmap_items",
+            "name": "item_type"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "internal_title",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "hub.roadmap_items",
+            "name": "internal_title"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "internal_description",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "hub.roadmap_items",
+            "name": "internal_description"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "public_title",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "hub.roadmap_items",
+            "name": "public_title"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "public_description",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "hub.roadmap_items",
+            "name": "public_description"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "visible_human",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "hub.roadmap_items",
+            "name": "visible_human"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "visible_bot",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "hub.roadmap_items",
+            "name": "visible_bot"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "status",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "hub.roadmap_items",
+            "name": "status"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "planned_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "hub.roadmap_items",
+            "name": "planned_at"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "due_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "hub.roadmap_items",
+            "name": "due_at"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
+        "name": "public_due_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "hub.roadmap_items",
+            "name": "public_due_at"
+          }
+        }
+      },
+      {
+        "ordinal": 15,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "hub.roadmap_items",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 16,
+        "name": "updated_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "hub.roadmap_items",
+            "name": "updated_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Bool",
+        "Bool",
+        "Text",
+        "Timestamptz",
+        "Timestamptz",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "b5d27dbe60f2a74991da99fc631c58ef9ae45378f22d8f5fa639b9f5b28ad5f8"
+}

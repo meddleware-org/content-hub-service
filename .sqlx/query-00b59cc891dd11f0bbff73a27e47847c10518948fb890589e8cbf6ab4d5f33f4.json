@@ -1,0 +1,124 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, started_at, finished_at, outcome, http_status, response_excerpt, request_redacted, dry_run, rendered_payload_sha256\n             FROM hub.delivery_attempts WHERE platform_instance_id = $1 ORDER BY id DESC",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "hub.delivery_attempts",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "started_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "hub.delivery_attempts",
+            "name": "started_at"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "finished_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "hub.delivery_attempts",
+            "name": "finished_at"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "outcome",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "hub.delivery_attempts",
+            "name": "outcome"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "http_status",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "hub.delivery_attempts",
+            "name": "http_status"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "response_excerpt",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "hub.delivery_attempts",
+            "name": "response_excerpt"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "request_redacted",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "hub.delivery_attempts",
+            "name": "request_redacted"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "dry_run",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "hub.delivery_attempts",
+            "name": "dry_run"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "rendered_payload_sha256",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "hub.delivery_attempts",
+            "name": "rendered_payload_sha256"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "00b59cc891dd11f0bbff73a27e47847c10518948fb890589e8cbf6ab4d5f33f4"
+}

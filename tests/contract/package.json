@@ -1,0 +1,19 @@
+{
+  "name": "content-hub-service-contract-tests",
+  "version": "0.0.0",
+  "private": true,
+  "description": "CI only: the published @meddleware/content-hub-client against the built content-hub binary. Test tooling, never shipped.",
+  "license": "0BSD",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@meddleware/content-hub-client": "0.0.1",
+    "@mysten/sui": "2.37.0",
+    "vitest": "5.0.5"
+  }
+}

@@ -1,0 +1,208 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT * FROM hub.tasks WHERE id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "hub.tasks",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "roadmap_item_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "hub.tasks",
+            "name": "roadmap_item_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "key",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "hub.tasks",
+            "name": "key"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "task_type",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "hub.tasks",
+            "name": "task_type"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "title",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "hub.tasks",
+            "name": "title"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "description",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "hub.tasks",
+            "name": "description"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "status",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "hub.tasks",
+            "name": "status"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "blocked_reason",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "hub.tasks",
+            "name": "blocked_reason"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "scheduled_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "hub.tasks",
+            "name": "scheduled_at"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "completed_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "hub.tasks",
+            "name": "completed_at"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "review_interval_days",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "hub.tasks",
+            "name": "review_interval_days"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "next_review_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "hub.tasks",
+            "name": "next_review_at"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "assignee_subject",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "hub.tasks",
+            "name": "assignee_subject"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "entity_gated",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "hub.tasks",
+            "name": "entity_gated"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "hub.tasks",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 15,
+        "name": "updated_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "hub.tasks",
+            "name": "updated_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "12a0325929846abfed831a6f810e07d1f12791384aaf79f516c78761ada4db8a"
+}

@@ -1,0 +1,38 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT task_id, depends_on_task_id FROM hub.task_dependencies",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "task_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "hub.task_dependencies",
+            "name": "task_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "depends_on_task_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "hub.task_dependencies",
+            "name": "depends_on_task_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "ac108e06f546ff54aa735501718222dda15fefb1d8e3223f0499d58e2491b0cf"
+}

@@ -1,0 +1,275 @@
+{
+  "counting": [
+    "hello world",
+    "aé😀👩‍💻",
+    "日本語のテキスト",
+    "é café",
+    "see https://example.org/a/very/long/path?x=1 now",
+    "hi @alice@example.social and @bob",
+    "mail me@example.org",
+    "🇬🇧 flags and 1️⃣ keycaps",
+    "tabs\tand\nnewlines",
+    "“quotes” — dashes … ellipsis",
+    "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  ],
+  "count_rules": [
+    {
+      "method": "bytes"
+    },
+    {
+      "method": "codepoints"
+    },
+    {
+      "method": "utf16"
+    },
+    {
+      "method": "graphemes"
+    },
+    {
+      "method": "x_weighted"
+    },
+    {
+      "method": "graphemes",
+      "url_weight": 23,
+      "mention_local_part": true
+    }
+  ],
+  "rendering": [
+    "plain text",
+    "**Hi** & <b> [docs](https://x.org/a?b=1&c=2) `x<y`\n\n- item",
+    "2 \\* 3 = 6 and **unclosed",
+    "*emph* with https://example.org/path) trailing.",
+    "- one\n- two\n\nPara with [a link](https://example.org) and **bold *nested* text**",
+    "<script>alert(1)</script> & \"quotes\"",
+    "line one\nline two\n\n\n\nafter many breaks"
+  ],
+  "markups": [
+    "plain",
+    "markdown",
+    "discord_md",
+    "telegram_html",
+    "bbcode"
+  ],
+  "segmentation": [
+    {
+      "source": "abcdefghij",
+      "targets": [
+        [
+          "short",
+          "plain",
+          "codepoints",
+          3
+        ],
+        [
+          "long",
+          "plain",
+          "codepoints",
+          7
+        ],
+        [
+          "all",
+          "plain",
+          "codepoints",
+          100
+        ]
+      ]
+    },
+    {
+      "source": "go https://example.org/abc now",
+      "targets": [
+        [
+          "t",
+          "plain",
+          "codepoints",
+          10
+        ]
+      ]
+    },
+    {
+      "source": "ab👩‍💻cd",
+      "targets": [
+        [
+          "t",
+          "plain",
+          "codepoints",
+          4
+        ],
+        [
+          "g",
+          "plain",
+          "graphemes",
+          3
+        ]
+      ]
+    },
+    {
+      "source": "**Big news:** the [roadmap](https://example.org/roadmap) is live. 🎉 Read it and tell us what you think — every reply is read.",
+      "targets": [
+        [
+          "x",
+          "plain",
+          "x_weighted",
+          40
+        ],
+        [
+          "tg",
+          "telegram_html",
+          "utf16",
+          50
+        ],
+        [
+          "bsky",
+          "plain",
+          "graphemes",
+          60
+        ],
+        [
+          "md",
+          "discord_md",
+          "codepoints",
+          2000
+        ]
+      ]
+    },
+    {
+      "source": "日本語のテキストとEnglish text mixed together",
+      "targets": [
+        [
+          "x",
+          "plain",
+          "x_weighted",
+          20
+        ],
+        [
+          "c",
+          "plain",
+          "codepoints",
+          20
+        ]
+      ]
+    },
+    {
+      "source": "abc",
+      "targets": [
+        [
+          "none",
+          "plain",
+          "codepoints",
+          0
+        ]
+      ]
+    }
+  ],
+  "limits": [
+    {
+      "markup": "plain",
+      "counting_method": "codepoints",
+      "primary_limit": 10,
+      "title": "T",
+      "body": "0123456789"
+    },
+    {
+      "markup": "plain",
+      "counting_method": "codepoints",
+      "primary_limit": 10,
+      "title": "T",
+      "body": "0123456789a"
+    },
+    {
+      "markup": "plain",
+      "counting_method": "x_weighted",
+      "primary_limit": 280,
+      "secondary_limits": {
+        "url_weight": 23
+      },
+      "title": "T",
+      "body": "Read https://example.org/a/very/long/path?x=1 now"
+    },
+    {
+      "markup": "plain",
+      "counting_method": "graphemes",
+      "primary_limit": 300,
+      "secondary_limits": {
+        "bytes": 20
+      },
+      "title": "T",
+      "body": "héllo wörld ünïcode text"
+    },
+    {
+      "markup": "plain",
+      "counting_method": "graphemes",
+      "primary_limit": 500,
+      "secondary_limits": {
+        "url_weight": 23,
+        "mention_local_part": 1,
+        "limit_source": "instance"
+      },
+      "title": "T",
+      "body": "@someone@mastodon.example see https://example.org/x"
+    },
+    {
+      "markup": "plain",
+      "counting_method": "graphemes",
+      "primary_limit": 500,
+      "secondary_limits": {
+        "url_weight": 23,
+        "mention_local_part": 1
+      },
+      "target_config": {
+        "instance_limits": {
+          "max_characters": 20,
+          "characters_reserved_per_url": 30
+        }
+      },
+      "title": "T",
+      "body": "see https://example.org/x"
+    },
+    {
+      "markup": "discord_md",
+      "counting_method": "codepoints",
+      "primary_limit": 2000,
+      "secondary_limits": {
+        "embed_description": 30,
+        "embeds_max": 10
+      },
+      "target_config": {
+        "mode": "embed"
+      },
+      "title": "Title",
+      "body": "**bold** and some more words here"
+    },
+    {
+      "markup": "discord_md",
+      "counting_method": "codepoints",
+      "primary_limit": 20,
+      "secondary_limits": {
+        "embed_description": 30
+      },
+      "target_config": {},
+      "title": "Title",
+      "body": "**bold** and some more words here"
+    },
+    {
+      "markup": "telegram_html",
+      "counting_method": "utf16",
+      "primary_limit": 4,
+      "title": "T",
+      "body": "**abcd**"
+    },
+    {
+      "markup": "plain",
+      "counting_method": "codepoints",
+      "primary_limit": 100,
+      "secondary_limits": {
+        "title": 3
+      },
+      "title": "Title",
+      "body": "short"
+    },
+    {
+      "markup": "markdown",
+      "title": "No counting method",
+      "body": "*free* text [link](https://example.org)"
+    }
+  ]
+}

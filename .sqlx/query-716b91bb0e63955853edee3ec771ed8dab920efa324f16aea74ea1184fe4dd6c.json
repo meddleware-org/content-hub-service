@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO hub.delivery_attempts (platform_instance_id, finished_at, outcome, request_redacted, dry_run,\n                                                  rendered_payload_sha256)\n               VALUES ($1, now(), 'dry_run', $2, true, $3)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Jsonb",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "716b91bb0e63955853edee3ec771ed8dab920efa324f16aea74ea1184fe4dd6c"
+}

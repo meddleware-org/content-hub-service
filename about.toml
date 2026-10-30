@@ -1,0 +1,18 @@
+# Licences accepted for crates linked into the `content-hub` binary. A dependency under any other
+# licence fails the image build and CI (`cargo about generate --fail`): review it, then add it here
+# deliberately (and to deny.toml).
+accepted = [
+    "0BSD",
+    "Apache-2.0",
+    "BSD-3-Clause",
+    "CDLA-Permissive-2.0",
+    "ISC",
+    "MIT",
+    "Unicode-3.0",
+    "Unlicense",
+    "Zlib",
+]
+targets = ["x86_64-unknown-linux-gnu", "aarch64-unknown-linux-gnu"]
+ignore-build-dependencies = true
+ignore-dev-dependencies = true
+workarounds = ["ring"]
