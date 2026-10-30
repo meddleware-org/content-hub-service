@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.0.2 — unreleased
+## 0.0.2 — 2026-10-30
 
 - Worker metrics: the latest snapshot's generation time and estimated Walrus storage end per network, so a failing export or
   a spent float shows days before the record expires.
