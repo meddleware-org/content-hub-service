@@ -13,7 +13,7 @@
   },
   "devDependencies": {
     "@meddleware/content-hub-client": "0.0.1",
-    "@mysten/sui": "2.37.0",
+    "@mysten/sui": "2.38.0",
     "vitest": "5.0.5"
   }
 }
