@@ -6,7 +6,7 @@ binary with the subcommands `admin`, `public`, `worker`, `migrate`, `seed`, `exp
 **Project type:** Rust service + container image
 **Template:**
 
-- AUDIT_TEMPLATE.md (2026-10-08)
+- AUDIT_TEMPLATE.md (2026-11-01)
 - AUDIT_TEMPLATE_RUST.md (2026-10-08) — the service is Rust
 - AUDIT_TEMPLATE_DB.md (2026-10-25) — owns its schema; three database roles
 - AUDIT_TEMPLATE_AUTH.md (2026-10-08) — verifies Cloudflare Access JWTs and decides authorisation with Keto (C5)
