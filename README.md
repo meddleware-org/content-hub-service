@@ -62,6 +62,7 @@ snapshot (canonical JSON, a Sui personal-message signature, stored on Walrus). O
 | `ALERT_INTERVAL_SECONDS` | `3600` | at most one summary per interval (300 to 86400) |
 | `WATCH_WALLETS` | unset | `label=0xaddress,…` (at most ten public addresses): their SUI and WAL balances are checked and exposed on `/metrics` (docs/MONITORING.md) |
 | `SUI_GRAPHQL_URL` | — (required with `WATCH_WALLETS`) | a Sui GraphQL endpoint, https, e.g. `https://graphql.testnet.sui.io/graphql` |
+| `WATCH_WAL_TYPE` | — (required with `WATCH_WALLETS`) | the full WAL coin type of the watched network, `0xPACKAGE::wal::WAL`; coins are matched by full type, never by name, so a look-alike coin sent to the address is not counted |
 | `WATCH_INTERVAL_SECONDS` | `300` | how often the balances are checked (60 to 3600) |
 
 `export-snapshot` reads `SNAPSHOT_SIGNER_SEED` (required), `SNAPSHOT_NETWORK` (default `testnet`; mainnet needs

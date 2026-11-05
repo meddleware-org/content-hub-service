@@ -309,7 +309,7 @@ fn worker_config() -> Result<content_hub_worker::WorkerConfig, CliError> {
     })
 }
 
-/// The wallet watch (`WATCH_WALLETS=label=0xaddress,...`, `SUI_GRAPHQL_URL`, `WATCH_INTERVAL_SECONDS`): none unless
+/// The wallet watch (`WATCH_WALLETS=label=0xaddress,...`, `SUI_GRAPHQL_URL`, `WATCH_WAL_TYPE`, `WATCH_INTERVAL_SECONDS`): none unless
 /// wallets are listed. Public addresses only.
 fn watch_config() -> Result<Option<content_hub_worker::watch::WatchConfig>, CliError> {
     let Some(list) = env("WATCH_WALLETS").filter(|v| !v.trim().is_empty()) else { return Ok(None) };
@@ -320,8 +320,13 @@ fn watch_config() -> Result<Option<content_hub_worker::watch::WatchConfig>, CliE
     }
     let graphql_url = required("SUI_GRAPHQL_URL")?;
     https("SUI_GRAPHQL_URL", &graphql_url)?;
+    // WAL is identified by its full type (the package differs per network); a missing or malformed value refuses to start
+    // rather than reading WAL as zero.
+    let wal_type = content_hub_worker::watch::canonical_coin_type(&required("WATCH_WAL_TYPE")?)
+        .ok_or_else(|| CliError::Setting("WATCH_WAL_TYPE: expected 0xPACKAGE::wal::WAL".into()))?;
     Ok(Some(content_hub_worker::watch::WatchConfig {
         graphql_url,
+        wal_type,
         wallets,
         every: std::time::Duration::from_secs(bounded("WATCH_INTERVAL_SECONDS", 300, 60, 3600)?),
     }))

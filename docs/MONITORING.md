@@ -23,6 +23,11 @@ the operator's monitoring stack (an instance repository), because thresholds and
 `WATCH_INTERVAL_SECONDS` in one background task, not once per scrape, and keep the last good reading. The checked HTTP client
 is used: https only, public addresses only, no redirects. The namespace's egress policy must allow the GraphQL host.
 
+Coins are identified by their **full type**: SUI by its canonical type and WAL by `WATCH_WAL_TYPE` (the WAL package differs per network;
+the worker refuses to start with `WATCH_WALLETS` and no valid `WATCH_WAL_TYPE`). Any other coin is ignored. Matching the last path
+segment would let anyone send a coin of their own type named `…::sui::SUI` to the public address and hide a depleted float from the
+balance alerts.
+
 Why it exists: the internal Walrus publisher stores the daily snapshot from its own small float (ADR-0007). A depleted float
 used to show only as a failed daily export; the balance gauges let the operator be told days earlier, and the
 snapshot-expiry gauge catches any other reason renewals stop.

@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- **Fixed (security):** the wallet watch identified coins by the last segment of their type, so a coin of anyone's own type named
+  `…::sui::SUI` or `…::wal::WAL` sent to the watched public address was counted as the real balance and could keep the balance alerts
+  silent while the float ran out. Coins are now matched by full type: SUI by its canonical type, WAL by the new required `WATCH_WAL_TYPE`
+  (the worker refuses to start without a valid one when `WATCH_WALLETS` is set). Balance sums use checked arithmetic: a reply whose sum
+  does not fit in 128 bits is a failed check.
+
 ## 0.0.2 — 2026-10-30
 
 - Worker metrics: the latest snapshot's generation time and estimated Walrus storage end per network, so a failing export or
