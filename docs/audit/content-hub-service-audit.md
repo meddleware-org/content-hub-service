@@ -48,7 +48,7 @@ size-guarded); restore drills passed 2026-10-30 from the in-cluster set and from
 **Networks:** localnet · testnet (mainnet after the entity gate)
 **On-chain packages consumed:** none (a Walrus blob object, C8)
 **CLI tools:** none   **Networks targetable:** as above   **Key material:** the snapshot hot-wallet key, a SOPS Secret (C8)
-**Deployment status:** live on testnet (R2, 2026-10-30); 0.0.2 released, pinned by consensus (cosign valid) and deployed 2026-10-30
+**Deployment status:** *(Current, 2026-11-05: `0.0.3` is released (image, CI green, signed) and deployed with the overlay's new `WATCH_WAL_TYPE`; `config/images.yaml` pins `sha256:33de492e…6759` by consensus (quay.io and Docker Hub agree, cosign valid) and the running pods' image digest equals it (admin, public and worker); the worker logs "watching wallet balances" and its `/metrics` reports the publisher's real SUI and WAL balances (1782817884 and 800000000 at 2026-11-05). The text below is the earlier history, kept as written.)* live on testnet (R2, 2026-10-30); 0.0.2 released, pinned by consensus (cosign valid) and deployed 2026-10-30
 **Review date:** 2026-10-25; 0.0.2 released 2026-10-30 (wallet watch and snapshot-storage metrics; live on testnet, deployed) — the wallet watch's code was reviewed on 2026-11-05 (F20)
 **Reviewer:** Internal review
 **Severity ceiling:** High — the service holds the operator's unreleased plans and posting credentials (by reference)
