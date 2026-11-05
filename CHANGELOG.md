@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.0.3 — 2026-11-05
 
 - **Fixed (security):** the wallet watch identified coins by the last segment of their type, so a coin of anyone's own type named
   `…::sui::SUI` or `…::wal::WAL` sent to the watched public address was counted as the real balance and could keep the balance alerts

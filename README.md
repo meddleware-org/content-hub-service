@@ -4,7 +4,7 @@ The backend of the content hub: canonical posts, a public roadmap, and a publish
 platform and tracks every publication, automated or manual. One Rust binary with six subcommands, PostgreSQL for
 state. Design: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
-**Status (0.0.2):** the admin API (Cloudflare Access + Keto, CSRF, cursor pagination, audit log, spend ceilings),
+**Status (0.0.3):** the admin API (Cloudflare Access + Keto, CSRF, cursor pagination, audit log, spend ceilings),
 the public API (roadmap for people and for agents, JSON Feed and RSS, OpenAPI, `llms.txt`/`robots.txt`, ETag
 caching), migrations, the seed import, and the text engine (rendering, counting, segmentation, intent links) that
 validates every payload before it is queued, and the publishing worker (Discord, Telegram, Bluesky, Mastodon, the
