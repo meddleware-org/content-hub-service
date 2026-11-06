@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.0.4 — 2026-11-06
+
+- Runtime base `distroless/cc-debian13` refreshed to the newest digest and the dev tools of the Dependabot groups merged (the contract tests' `vitest`, `taiki-e/install-action`); no code change.
+
 ## 0.0.3 — 2026-11-05
 
 - **Fixed (security):** the wallet watch identified coins by the last segment of their type, so a coin of anyone's own type named
