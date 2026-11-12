@@ -23,6 +23,7 @@ permissions:
 # Queries are checked at compile time against the committed metadata in .sqlx/ (no database at build time);
 # the `sqlx prepare --check` step proves that metadata matches the migrated schema.
 env:
+  DO_NOT_TRACK: "1"
   SQLX_OFFLINE: "true"
 
 jobs:

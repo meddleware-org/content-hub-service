@@ -43,6 +43,7 @@ on:
         default: true
 
 env:
+  DO_NOT_TRACK: "1"
   IMAGE: content-hub-service
 
 permissions:
