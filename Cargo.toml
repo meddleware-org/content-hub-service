@@ -42,7 +42,7 @@ tracing = "=0.1.44"
 tracing-subscriber = { version = "=0.3.23", default-features = false, features = ["fmt", "json", "env-filter", "ansi"] }
 url = "=2.5.8"
 chrono = { version = "=0.4.45", default-features = false, features = ["std", "clock", "serde"] }
-uuid = { version = "=1.29.0", default-features = false, features = ["std", "v4", "serde"] }
+uuid = { version = "=1.29.2", default-features = false, features = ["std", "v4", "serde"] }
 getrandom = "=0.4.3"
 unicode-segmentation = "=1.13.3"
 unicode-normalization = "=0.1.26"
@@ -53,7 +53,7 @@ ring = "=0.17.14"
 rustls = { version = "=0.23.46", default-features = false, features = ["ring", "std", "tls12"] }
 reqwest = { version = "=0.13.5", default-features = false, features = ["rustls-no-provider", "json", "http2"] }
 utoipa = { version = "=6.0.0", features = ["chrono", "uuid"] }
-serde-saphyr = "=2.0.0"
+serde-saphyr = "=2.1.1"
 proptest = "=1.12.0"
 tower-http = { version = "=0.7.1", default-features = false, features = ["timeout", "limit"] }
 
