@@ -8,6 +8,11 @@ targets = ["x86_64-unknown-linux-gnu", "aarch64-unknown-linux-gnu"]
 # for the whole graph so a replacement can be planned.
 yanked = "deny"
 unmaintained = "all"
+ignore = [
+    # Informational (unmaintained, no vulnerability). chrono is used directly (store, API, publishers, worker) and through sqlx
+    # and utoipa; moving to jiff or time is its own release, tracked in the workspace as FU-0161. Remove this line with it.
+    { id = "RUSTSEC-2026-0543", reason = "chrono unmaintained (informational); migration to jiff/time tracked as workspace FU-0161" },
+]
 
 [licenses]
 # Permissive licences present in the dependency tree (2026-10-25). Adding a crate under any other

@@ -4,6 +4,8 @@
 
 - **Security:** runtime base `distroless/cc-debian13` moved to the digest that carries `zlib1g 1:1.3.dfsg+really1.3.1-1+b1+deb13u1`, the
   fix for CVE-2026-85091 (heap buffer overflow in `gz_vacate()`, HIGH); the previous base shipped the vulnerable build. No code change.
+- `deny.toml`: RUSTSEC-2026-0543 (chrono unmaintained, informational) is accepted with its reason until the move to jiff or time
+  (workspace FU-0161).
 
 ## 0.0.4 — 2026-11-06
 
