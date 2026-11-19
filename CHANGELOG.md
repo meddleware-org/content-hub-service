@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.0.5 — 2026-11-19
+
+- **Security:** runtime base `distroless/cc-debian13` moved to the digest that carries `zlib1g 1:1.3.dfsg+really1.3.1-1+b1+deb13u1`, the
+  fix for CVE-2026-85091 (heap buffer overflow in `gz_vacate()`, HIGH); the previous base shipped the vulnerable build. No code change.
+
 ## 0.0.4 — 2026-11-06
 
 - Runtime base `distroless/cc-debian13` refreshed to the newest digest and the dev tools of the Dependabot groups merged (the contract tests' `vitest`, `taiki-e/install-action`); no code change.
