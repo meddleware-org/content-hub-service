@@ -10,93 +10,139 @@ use crate::ident::{is_key, is_platform_code};
 use crate::model::{ItemStatus, ItemType, TaskStatus, TaskType};
 use crate::task_state::has_dependency_cycle;
 
+/// The roadmap seed file: phases, items and tasks that start a new instance.
 #[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SeedFile {
+    /// The version of the file's format (only 1 is understood).
     pub schema_version: u32,
+    /// The phases, in the order the roadmap shows them.
     pub phases: Vec<SeedPhase>,
+    /// The roadmap items, each in one phase.
     pub items: Vec<SeedItem>,
+    /// The tasks, each optionally attached to an item.
     pub tasks: Vec<SeedTask>,
 }
 
+/// One roadmap phase.
 #[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SeedPhase {
+    /// The phase's stable key; items name it.
     pub key: String,
+    /// Its position in the roadmap (positive, unique).
     pub order: i32,
+    /// The name the operator sees.
     pub internal_name: String,
+    /// The description the operator sees.
     pub internal_description: String,
+    /// The name the public roadmap shows.
     pub public_name: String,
+    /// The description the public roadmap shows.
     pub public_description: String,
+    /// When the phase starts, if it is dated.
     #[serde(default)]
     pub window_start: Option<DateTime<Utc>>,
+    /// When the phase ends, if it is dated.
     #[serde(default)]
     pub window_end: Option<DateTime<Utc>>,
+    /// Whether people reading the roadmap in a browser see the phase.
     pub visible_human: bool,
+    /// Whether the machine-readable feeds carry the phase.
     pub visible_bot: bool,
 }
 
+/// One roadmap item.
 #[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SeedItem {
+    /// The item's stable key; tasks name it.
     pub key: String,
+    /// The key of the phase it belongs to.
     pub phase: String,
+    /// What kind of item it is.
     #[serde(rename = "type")]
     pub item_type: ItemType,
+    /// The title the operator sees.
     pub internal_title: String,
+    /// The description the operator sees.
     pub internal_description: String,
+    /// The title the public roadmap shows, when it differs from the internal one.
     #[serde(default)]
     pub public_title: Option<String>,
+    /// The description the public roadmap shows.
     #[serde(default)]
     pub public_description: Option<String>,
+    /// Whether people reading the roadmap in a browser see the item.
     pub visible_human: bool,
+    /// Whether the machine-readable feeds carry the item.
     pub visible_bot: bool,
+    /// Where the item stands.
     pub status: ItemStatus,
+    /// When the item is planned to start.
     #[serde(default)]
     pub planned_at: Option<DateTime<Utc>>,
+    /// When the item is due.
     #[serde(default)]
     pub due_at: Option<DateTime<Utc>>,
+    /// The due date the public roadmap shows (it may be later than the internal one).
     #[serde(default)]
     pub public_due_at: Option<DateTime<Utc>>,
 }
 
+/// One operator task.
 #[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct SeedTask {
+    /// The task's stable key; other tasks name it in `depends_on`.
     pub key: String,
+    /// The key of the item it belongs to, if any.
     #[serde(default)]
     pub item: Option<String>,
+    /// What kind of task it is.
     pub task_type: TaskType,
+    /// The task's title.
     pub title: String,
+    /// The task's description.
     #[serde(default)]
     pub description: String,
+    /// The codes of the platforms the task is about.
     #[serde(default)]
     pub platforms: Vec<String>,
     /// Names of the instance's platform targets (linked when a target of that name exists on one of the platforms).
     #[serde(default)]
     pub targets: Vec<String>,
+    /// Where the task stands.
     pub status: TaskStatus,
+    /// When the task is scheduled.
     #[serde(default)]
     pub scheduled_at: Option<DateTime<Utc>>,
+    /// How many days pass between reviews of a recurring task.
     #[serde(default)]
     pub review_interval_days: Option<i32>,
+    /// The keys of the tasks that must be done first.
     #[serde(default)]
     pub depends_on: Vec<String>,
+    /// Whether the task waits for the legal entity to exist.
     #[serde(default)]
     pub entity_gated: bool,
 }
 
+/// Whether the number of characters in `s` is between `min` and `max`.
 fn len_ok(s: &str, min: usize, max: usize) -> bool {
     (min..=max).contains(&s.chars().count())
 }
 
 /// Every problem with a seed (empty when valid). `known_codes` are the platform codes the database holds.
 pub fn validate(seed: &SeedFile, known_codes: &BTreeSet<String>) -> Vec<String> {
+    // Every problem is collected, so the operator sees them all at once.
     let mut p = Vec::new();
     if seed.schema_version != 1 {
         p.push(format!("schema_version {} is not supported (1)", seed.schema_version));
     }
+    // Phase keys seen so far, to catch a duplicate.
     let mut phase_keys = BTreeSet::new();
+    // Positions seen so far, to catch a duplicate.
     let mut orders = BTreeSet::new();
     for ph in &seed.phases {
         let k = &ph.key;
@@ -197,10 +243,12 @@ pub fn platform_usage(seed: &SeedFile) -> BTreeMap<&str, usize> {
     m
 }
 
+/// Unit tests for this module.
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    /// A small valid seed: one phase, one item and two tasks, the second depending on the first.
     const OK: &str = r#"{"schema_version": 1,
       "phases": [{"key": "p1", "order": 1, "internal_name": "Internal", "internal_description": "", "public_name": "Public",
                   "public_description": "", "visible_human": true, "visible_bot": false}],
@@ -210,10 +258,12 @@ mod tests {
       "tasks": [{"key": "a", "item": "i1", "task_type": "ENGINEERING", "title": "A", "status": "planned", "platforms": ["OWNED_FEED"]},
                 {"key": "b", "task_type": "OTHER", "title": "B", "status": "done", "depends_on": ["a"]}]}"#;
 
+    /// The platform codes the database is pretended to hold.
     fn codes() -> BTreeSet<String> {
         ["OWNED_FEED".to_owned()].into()
     }
 
+    /// A valid seed has no problems.
     #[test]
     fn a_valid_seed_has_no_problems() {
         let s: SeedFile = serde_json::from_str(OK).expect("parses");
@@ -221,6 +271,7 @@ mod tests {
         assert_eq!(platform_usage(&s)["OWNED_FEED"], 1);
     }
 
+    /// Every problem is reported.
     #[test]
     fn every_problem_is_reported() {
         let mut s: SeedFile = serde_json::from_str(OK).expect("parses");
@@ -243,6 +294,7 @@ mod tests {
         }
     }
 
+    /// Unknown fields are refused.
     #[test]
     fn unknown_fields_are_refused() {
         let bad = OK.replacen(r#""order": 1,"#, r#""order": 1, "secret": true,"#, 1);

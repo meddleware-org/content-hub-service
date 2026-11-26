@@ -36,20 +36,25 @@ pub fn is_sui_address(s: &str) -> bool {
     s.strip_prefix("0x").is_some_and(|h| h.len() == 64 && h.bytes().all(|c| c.is_ascii_hexdigit()))
 }
 
+/// Unit tests for this module.
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    /// Sui addresses have a prefix and sixty four hex digits.
     #[test]
     fn sui_addresses_have_a_prefix_and_sixty_four_hex_digits() {
         assert!(is_sui_address(&format!("0x{}", "ab".repeat(32))));
+        // Upper-case hex digits are accepted.
         assert!(is_sui_address(&format!("0x{}", "AB".repeat(32))));
         for bad in [
             "",
             "0x",
             "0x12",
+            // No `0x` prefix.
             &format!("ab{}", "ab".repeat(32)),
             &format!("0x{}", "zz".repeat(32)),
+            // Too long.
             &format!("0x{}", "ab".repeat(33)),
         ] {
             assert!(!is_sui_address(bad), "{bad}");
@@ -59,22 +64,28 @@ mod tests {
     /// The public seed schema states the same shapes (it is what operators validate their seed against).
     #[test]
     fn the_seed_schema_uses_the_same_patterns() {
+        // The schema file operators validate their seeds against is read from the repository.
         let schema: serde_json::Value =
             serde_json::from_str(include_str!("../../../schema/roadmap-seed.schema.json")).expect("schema parses");
+        // The same pattern as the code and the database constraint.
         assert_eq!(schema["$defs"]["key"]["pattern"], "^[a-z0-9][a-z0-9-]{0,62}$");
         assert_eq!(schema["$defs"]["task"]["properties"]["platforms"]["items"]["pattern"], "^[A-Z][A-Z0-9_]{0,40}$");
     }
 
+    /// Keys.
     #[test]
     fn keys() {
+        // Up to 63 characters of lower-case letters, digits and inner hyphens.
         for ok in ["a", "0", "phase-1", "a-b-c", &"a".repeat(63)] {
             assert!(is_key(ok), "{ok}");
         }
+        // Empty, a leading hyphen, upper case, an underscore, a space, a non-ASCII letter and one character too many.
         for bad in ["", "-a", "A", "a_b", "a b", "ä", &"a".repeat(64)] {
             assert!(!is_key(bad), "{bad}");
         }
     }
 
+    /// Platform codes.
     #[test]
     fn platform_codes() {
         for ok in ["X", "OWNED_FEED", "DISCORD_ANNOUNCEMENTS", "A1", &"A".repeat(41)] {
@@ -85,6 +96,7 @@ mod tests {
         }
     }
 
+    /// Secret refs are names never values.
     #[test]
     fn secret_refs_are_names_never_values() {
         assert!(is_secret_ref("PLATFORM_DISCORD_ANNOUNCEMENTS_WEBHOOK_URL"));

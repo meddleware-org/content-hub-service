@@ -22,14 +22,20 @@ async fn code_of(c: &mut PgConnection, sql: &str) -> Option<String> {
     }
 }
 
+/// Run a statement that must succeed.
 async fn ok(c: &mut PgConnection, sql: &str) {
     c.execute(AssertSqlSafe(sql.to_owned())).await.unwrap_or_else(|e| panic!("{e}\n{sql}"));
 }
 
+/// SQLSTATE: insufficient privilege.
 const PERMISSION_DENIED: &str = "42501";
+/// SQLSTATE: a check constraint failed.
 const CHECK_VIOLATION: &str = "23514";
+/// SQLSTATE: a unique constraint failed.
 const UNIQUE_VIOLATION: &str = "23505";
+/// SQLSTATE: a foreign key failed.
 const FK_VIOLATION: &str = "23503";
+/// SQLSTATE: a restricting foreign key blocked a delete.
 const RESTRICT_VIOLATION: &str = "23001";
 
 /// A minimal dataset as the writer: one phase, item, definition, target, post.
@@ -63,6 +69,7 @@ async fn seed_minimal(c: &mut PgConnection) {
 
 // ── migrations ───────────────────────────────────────────────────────────────────────────────────────
 
+/// Migrations apply once and report the version.
 #[tokio::test]
 async fn migrations_apply_once_and_report_the_version() {
     let Some(db) = TestDb::create().await else { return };
@@ -74,6 +81,7 @@ async fn migrations_apply_once_and_report_the_version() {
     assert_eq!(migrate::readiness(&pool).await, Readiness::Ready);
 }
 
+/// Racing migrators apply each migration once.
 #[tokio::test]
 async fn racing_migrators_apply_each_migration_once() {
     let Some(db) = TestDb::create().await else { return };
@@ -87,6 +95,7 @@ async fn racing_migrators_apply_each_migration_once() {
     assert_eq!(rows, 1);
 }
 
+/// A schema from a newer build is refused.
 #[tokio::test]
 async fn a_schema_from_a_newer_build_is_refused() {
     let db = require_db!();
@@ -101,6 +110,7 @@ async fn a_schema_from_a_newer_build_is_refused() {
     assert!(e.to_string().contains("999"), "{e}");
 }
 
+/// An edited migration is refused.
 #[tokio::test]
 async fn an_edited_migration_is_refused() {
     let db = require_db!();
@@ -109,6 +119,7 @@ async fn an_edited_migration_is_refused() {
     assert!(migrate::run(&db.owner).await.is_err());
 }
 
+/// The first migration creates the data schema when provisioning did not.
 #[tokio::test]
 async fn the_first_migration_creates_the_data_schema_when_provisioning_did_not() {
     let Some(db) = TestDb::create_variant(DataSchema::LeftToMigration).await else { return };
@@ -121,6 +132,7 @@ async fn the_first_migration_creates_the_data_schema_when_provisioning_did_not()
     assert!(n >= 15, "{n} tables in hub");
 }
 
+/// An unreachable database is reported as such.
 #[tokio::test]
 async fn an_unreachable_database_is_reported_as_such() {
     let Some(db) = TestDb::create().await else { return };
@@ -131,6 +143,7 @@ async fn an_unreachable_database_is_reported_as_such() {
 
 // ── roles ────────────────────────────────────────────────────────────────────────────────────────────
 
+/// The readonly role reads only the public views.
 #[tokio::test]
 async fn the_readonly_role_reads_only_the_public_views() {
     let db = require_db!();
@@ -163,6 +176,7 @@ async fn the_readonly_role_reads_only_the_public_views() {
     }
 }
 
+/// The writer changes data but never the schema.
 #[tokio::test]
 async fn the_writer_changes_data_but_never_the_schema() {
     let db = require_db!();
@@ -184,6 +198,7 @@ async fn the_writer_changes_data_but_never_the_schema() {
     assert_eq!(code_of(&mut w, "DELETE FROM public._sqlx_migrations").await.as_deref(), Some(PERMISSION_DENIED));
 }
 
+/// Audit log and spend ledger are append only.
 #[tokio::test]
 async fn audit_log_and_spend_ledger_are_append_only() {
     let db = require_db!();
@@ -211,6 +226,7 @@ async fn audit_log_and_spend_ledger_are_append_only() {
 
 // ── constraints ──────────────────────────────────────────────────────────────────────────────────────
 
+/// Constraints refuse inconsistent rows.
 #[tokio::test]
 async fn constraints_refuse_inconsistent_rows() {
     let db = require_db!();
@@ -244,6 +260,7 @@ async fn constraints_refuse_inconsistent_rows() {
     }
 }
 
+/// An instance is live at most once per target and keeps its state consistent.
 #[tokio::test]
 async fn an_instance_is_live_at_most_once_per_target_and_keeps_its_state_consistent() {
     let db = require_db!();
@@ -299,6 +316,7 @@ async fn an_instance_is_live_at_most_once_per_target_and_keeps_its_state_consist
     assert_eq!(code_of(&mut w, &attempt("success", false, false)).await.as_deref(), Some(CHECK_VIOLATION));
 }
 
+/// References must agree.
 #[tokio::test]
 async fn references_must_agree() {
     let db = require_db!();
@@ -341,6 +359,7 @@ async fn references_must_agree() {
     assert_eq!(code_of(&mut w, "DELETE FROM hub.posts").await.as_deref(), Some(RESTRICT_VIOLATION));
 }
 
+/// Updated at moves on update.
 #[tokio::test]
 async fn updated_at_moves_on_update() {
     let db = require_db!();
@@ -357,6 +376,7 @@ async fn updated_at_moves_on_update() {
 
 // ── enumerations: Rust and SQL agree ──────────────────────────────────────────────────────────────────
 
+/// Every check constrained enumeration matches the rust enum.
 #[tokio::test]
 async fn every_check_constrained_enumeration_matches_the_rust_enum() {
     let db = require_db!();
@@ -438,6 +458,7 @@ const PUBLIC_VIEW_COLUMNS: &[(&str, &[&str])] = &[
     ),
 ];
 
+/// Public view columns are exactly the documented ones.
 #[tokio::test]
 async fn public_view_columns_are_exactly_the_documented_ones() {
     let db = require_db!();
@@ -475,6 +496,7 @@ async fn public_view_columns_are_exactly_the_documented_ones() {
     }
 }
 
+/// Visibility follows both the item and its phase.
 #[tokio::test]
 async fn visibility_follows_both_the_item_and_its_phase() {
     let db = require_db!();
@@ -501,6 +523,7 @@ async fn visibility_follows_both_the_item_and_its_phase() {
     assert_eq!(items, vec![("Public item".to_owned(), true, false)]);
 }
 
+/// Only the public due date is published.
 #[tokio::test]
 async fn only_the_public_due_date_is_published() {
     let db = require_db!();
@@ -521,6 +544,7 @@ async fn only_the_public_due_date_is_published() {
     assert!(shown);
 }
 
+/// The feed lists only posted entries on enabled feed targets.
 #[tokio::test]
 async fn the_feed_lists_only_posted_entries_on_enabled_feed_targets() {
     let db = require_db!();

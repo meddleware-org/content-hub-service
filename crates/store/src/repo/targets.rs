@@ -7,36 +7,58 @@ use sqlx::PgConnection;
 
 use crate::Result;
 
+/// One destination on a platform (a channel, a handle, a listing).
 #[derive(Debug, Clone, Serialize, utoipa::ToSchema)]
 pub struct PlatformTarget {
+    /// The target's id.
     pub id: i64,
+    /// The platform definition it belongs to.
     pub platform_definition_id: i64,
+    /// The platform's code.
     pub platform_code: String,
+    /// The name shown to the operator.
     pub name: String,
+    /// The destination's reference on the platform.
     pub external_ref: Option<String>,
+    /// The target's own configuration.
     pub config: Value,
+    /// The name of the environment variable that holds the credential (never the credential).
     pub secret_ref: Option<String>,
+    /// Whether the target is a sandbox.
     pub is_sandbox: bool,
+    /// Whether the target is switched on.
     pub enabled: bool,
     /// Real sends (see the worker's live rules); off means dry runs.
     pub live: bool,
+    /// When it was created.
     pub created_at: DateTime<Utc>,
+    /// When it last changed.
     pub updated_at: DateTime<Utc>,
 }
 
+/// The writable fields of a target.
 #[derive(Debug, Clone, PartialEq)]
 pub struct TargetFields {
+    /// The platform definition.
     pub platform_definition_id: i64,
+    /// The name.
     pub name: String,
+    /// The destination's reference on the platform.
     pub external_ref: Option<String>,
+    /// The configuration.
     pub config: Value,
+    /// The credential's variable name.
     pub secret_ref: Option<String>,
+    /// Whether it is a sandbox.
     pub is_sandbox: bool,
+    /// Whether it is switched on.
     pub enabled: bool,
+    /// Whether real sends are allowed.
     pub live: bool,
 }
 
 impl From<&PlatformTarget> for TargetFields {
+    /// The editable fields of a target, taken from the stored one so a patch starts from the current state.
     fn from(t: &PlatformTarget) -> Self {
         TargetFields {
             platform_definition_id: t.platform_definition_id,
@@ -51,6 +73,7 @@ impl From<&PlatformTarget> for TargetFields {
     }
 }
 
+/// Every target.
 pub async fn list(conn: &mut PgConnection) -> Result<Vec<PlatformTarget>> {
     Ok(sqlx::query_as!(
         PlatformTarget,
@@ -63,6 +86,7 @@ pub async fn list(conn: &mut PgConnection) -> Result<Vec<PlatformTarget>> {
     .await?)
 }
 
+/// One target.
 pub async fn get(conn: &mut PgConnection, id: i64) -> Result<Option<PlatformTarget>> {
     Ok(sqlx::query_as!(
         PlatformTarget,
@@ -72,10 +96,12 @@ pub async fn get(conn: &mut PgConnection, id: i64) -> Result<Option<PlatformTarg
             WHERE t.id = $1"#,
         id
     )
+    // `None` when there is no such target.
     .fetch_optional(conn)
     .await?)
 }
 
+/// Insert a target and return its id.
 pub async fn insert(conn: &mut PgConnection, f: &TargetFields) -> Result<i64> {
     Ok(sqlx::query_scalar!(
         r#"INSERT INTO hub.platform_targets (platform_definition_id, name, external_ref, config, secret_ref, is_sandbox, enabled, live)
@@ -89,10 +115,12 @@ pub async fn insert(conn: &mut PgConnection, f: &TargetFields) -> Result<i64> {
         f.enabled,
         f.live
     )
+    // The new id.
     .fetch_one(conn)
     .await?)
 }
 
+/// Replace a target's fields.
 pub async fn update(conn: &mut PgConnection, id: i64, f: &TargetFields) -> Result<()> {
     sqlx::query!(
         r#"UPDATE hub.platform_targets SET name = $2, external_ref = $3, config = $4, secret_ref = $5, is_sandbox = $6, enabled = $7,

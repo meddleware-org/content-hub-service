@@ -9,13 +9,17 @@ use sqlx::PgConnection;
 
 use crate::Result;
 
+/// The setting that stops publishing while it is true.
 pub const PUBLISHING_PAUSED: &str = "publishing.paused";
+/// The setting that holds the alert state the worker remembers.
 pub const ALERTS_STATE: &str = "alerts.state";
 
+/// The value of a setting, if it is set.
 pub async fn get(conn: &mut PgConnection, key: &str) -> Result<Option<Value>> {
     Ok(sqlx::query_scalar!("SELECT value FROM hub.settings WHERE key = $1", key).fetch_optional(conn).await?)
 }
 
+/// Set a setting and record who set it.
 pub async fn set(conn: &mut PgConnection, key: &str, value: &Value, by: &str) -> Result<()> {
     sqlx::query!(
         r#"INSERT INTO hub.settings (key, value, updated_by) VALUES ($1, $2, $3)

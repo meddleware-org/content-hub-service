@@ -24,23 +24,32 @@ pub const SCHEMA: &str = "content-hub.roadmap-snapshot/1";
 /// The largest document that is built, signed and stored (1 MiB).
 pub const MAX_BYTES: usize = 1 << 20;
 
+/// The signature scheme flag of Ed25519 in a Sui serialised signature.
 const ED25519_FLAG: u8 = 0x00;
+/// The intent prefix of a personal message: scope 3, version 0, application 0 (Sui).
 const PERSONAL_MESSAGE_INTENT: [u8; 3] = [3, 0, 0];
 
+/// Why a snapshot could not be built, signed or checked.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum SnapshotError {
+    /// The document is larger than the limit; the size follows.
     #[error("the document is {0} bytes; at most {MAX_BYTES} are allowed")]
     TooLarge(usize),
+    /// The document holds a number that is not an integer.
     #[error("the document holds a non-integer number, which has no canonical form")]
     NotCanonical,
+    /// The signer's seed is not a valid Ed25519 seed.
     #[error("the signer seed is not a valid Ed25519 seed")]
     BadSeed,
+    /// The signature is not a Sui Ed25519 signature; the reason follows.
     #[error("not a Sui Ed25519 signature: {0}")]
     BadSignature(&'static str),
+    /// The signature is well formed but does not match the message.
     #[error("the signature does not match the message")]
     Mismatch,
 }
 
+/// The BLAKE2b-256 digest of the parts joined together.
 fn blake2b_256(parts: &[&[u8]]) -> [u8; 32] {
     let mut h = Blake2b::<U32>::new();
     for p in parts {
@@ -59,6 +68,7 @@ pub fn canonical(doc: &Value) -> Result<Vec<u8>, SnapshotError> {
     Ok(out)
 }
 
+/// Write one value as canonical JSON: sorted keys, no whitespace, integers only.
 fn write(v: &Value, out: &mut Vec<u8>) -> Result<(), SnapshotError> {
     match v {
         Value::Null => out.extend_from_slice(b"null"),
@@ -111,8 +121,10 @@ pub fn address_of(public_key: &[u8; 32]) -> String {
     format!("0x{}", h.iter().map(|b| format!("{b:02x}")).collect::<String>())
 }
 
+/// Write `n` as a ULEB128 integer, the length prefix BCS uses.
 fn uleb128(mut n: usize, out: &mut Vec<u8>) {
     loop {
+        // Seven bits at a time, least significant first.
         let byte = (n & 0x7f) as u8;
         n >>= 7;
         if n == 0 {
@@ -125,6 +137,7 @@ fn uleb128(mut n: usize, out: &mut Vec<u8>) {
 
 /// The 32-byte digest a Sui personal-message signature signs.
 pub fn personal_message_digest(message: &[u8]) -> [u8; 32] {
+    // The signed bytes: the intent, the message's BCS length, then the message.
     let mut intent_message = Vec::with_capacity(message.len() + 8);
     intent_message.extend_from_slice(&PERSONAL_MESSAGE_INTENT);
     uleb128(message.len(), &mut intent_message);
@@ -134,11 +147,14 @@ pub fn personal_message_digest(message: &[u8]) -> [u8; 32] {
 
 /// An Ed25519 signer for personal messages (the snapshot signer; ADR-0007).
 pub struct Signer {
+    /// The Ed25519 key pair.
     key: Ed25519KeyPair,
+    /// Its public key.
     public: [u8; 32],
 }
 
 impl std::fmt::Debug for Signer {
+    /// Print the address only, never the key.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "Signer({})", self.address())
     }
@@ -159,6 +175,7 @@ impl Signer {
         Signer::from_seed(&seed)
     }
 
+    /// The signer's Sui address.
     pub fn address(&self) -> String {
         address_of(&self.public)
     }
@@ -166,7 +183,9 @@ impl Signer {
     /// The serialised signature (`0x00 ‖ signature ‖ public key`, base64) of a personal message.
     pub fn sign_personal_message(&self, message: &[u8]) -> String {
         let digest = personal_message_digest(message);
+        // Ed25519 signs the digest, as a Sui wallet does for a personal message.
         let sig = self.key.sign(&digest);
+        // The serialised form is the scheme flag, the 64-byte signature and the 32-byte public key: 97 bytes.
         let mut out = Vec::with_capacity(97);
         out.push(ED25519_FLAG);
         out.extend_from_slice(sig.as_ref());
@@ -178,6 +197,7 @@ impl Signer {
 /// Check a serialised Ed25519 personal-message signature; returns the signing address.
 pub fn verify_personal_message(message: &[u8], signature_b64: &str) -> Result<String, SnapshotError> {
     let raw = STANDARD.decode(signature_b64.trim()).map_err(|_| SnapshotError::BadSignature("not base64"))?;
+    // Any other length cannot be an Ed25519 signature.
     if raw.len() != 97 {
         return Err(SnapshotError::BadSignature("an Ed25519 signature is 97 bytes"));
     }
@@ -191,17 +211,21 @@ pub fn verify_personal_message(message: &[u8], signature_b64: &str) -> Result<St
     Ok(address_of(&public))
 }
 
+/// Unit tests for this module.
 #[cfg(test)]
 mod tests {
     use super::*;
     use serde_json::json;
 
+    /// A signer from a fixed test seed.
     fn signer() -> Signer {
         Signer::from_seed(&[7u8; 32]).expect("seed")
     }
 
+    /// Canonical json sorts keys and drops whitespace.
     #[test]
     fn canonical_json_sorts_keys_and_drops_whitespace() {
+        // Keys in a different order and an escaped quote and newline: the canonical form must not depend on either.
         let a = json!({"b": [1, {"y": true, "x": null}], "a": "é\"\n", "c": -5});
         let b: Value = serde_json::from_str(r#"{"c":-5,"a":"é\"\n","b":[1,{"x":null,"y":true}]}"#).expect("json");
         assert_eq!(canonical(&a).expect("a"), canonical(&b).expect("b"));
@@ -211,31 +235,38 @@ mod tests {
         );
     }
 
+    /// Canonical json refuses what has no canonical form or is too big.
     #[test]
     fn canonical_json_refuses_what_has_no_canonical_form_or_is_too_big() {
+        // A float has no single canonical spelling, so it is refused.
         assert_eq!(canonical(&json!({"x": 1.5})), Err(SnapshotError::NotCanonical));
+        // A document over the limit is refused before it is signed.
         let big = json!({"x": "a".repeat(MAX_BYTES)});
         assert!(matches!(canonical(&big), Err(SnapshotError::TooLarge(_))));
     }
 
+    /// A signature verifies and names its signer.
     #[test]
     fn a_signature_verifies_and_names_its_signer() {
         let s = signer();
         let msg = br#"{"schema":"x"}"#;
         let sig = s.sign_personal_message(msg);
         assert_eq!(verify_personal_message(msg, &sig), Ok(s.address()));
+        // `0x` and 64 hex digits.
         assert_eq!(s.address().len(), 66);
         assert!(s.address().starts_with("0x"));
         // Ed25519 is deterministic: the same message gives the same signature.
         assert_eq!(sig, s.sign_personal_message(msg));
     }
 
+    /// Tampering is detected.
     #[test]
     fn tampering_is_detected() {
         let s = signer();
         let sig = s.sign_personal_message(b"hello");
         assert_eq!(verify_personal_message(b"hellp", &sig), Err(SnapshotError::Mismatch));
         let mut raw = STANDARD.decode(&sig).expect("b64");
+        // Flip one bit inside the signature.
         raw[10] ^= 1;
         assert_eq!(verify_personal_message(b"hello", &STANDARD.encode(&raw)), Err(SnapshotError::Mismatch));
         raw[10] ^= 1;
@@ -244,6 +275,7 @@ mod tests {
             verify_personal_message(b"hello", &STANDARD.encode(&raw)),
             Err(SnapshotError::BadSignature(_))
         ));
+        // Empty, not base64 and too short are all refused as bad signatures.
         for bad in ["", "not base64!!", &STANDARD.encode([0u8; 10])] {
             assert!(matches!(verify_personal_message(b"hello", bad), Err(SnapshotError::BadSignature(_))), "{bad}");
         }
@@ -252,6 +284,7 @@ mod tests {
         assert_ne!(verify_personal_message(b"hello", &other.sign_personal_message(b"hello")), Ok(s.address()));
     }
 
+    /// The digest includes the intent and a length prefix.
     #[test]
     fn the_digest_includes_the_intent_and_a_length_prefix() {
         // A message and the same message with the intent bytes prepended must not collide.
@@ -259,33 +292,40 @@ mod tests {
         // ULEB128: 300 is 0xAC 0x02.
         let mut v = Vec::new();
         uleb128(300, &mut v);
+        // 300 needs two bytes: the low seven bits with the continuation bit, then the rest.
         assert_eq!(v, [0xac, 0x02]);
         let mut v = Vec::new();
         uleb128(5, &mut v);
         assert_eq!(v, [5]);
     }
 
+    /// Seeds parse from base64 only at the right length.
     #[test]
     fn seeds_parse_from_base64_only_at_the_right_length() {
         let ok = STANDARD.encode([7u8; 32]);
         assert_eq!(Signer::from_base64_seed(&ok).expect("seed").address(), signer().address());
+        // Empty, too short, 31 bytes, 33 bytes and not base64.
         for bad in ["", "AAAA", &STANDARD.encode([1u8; 31]), &STANDARD.encode([1u8; 33]), "%%%"] {
             assert!(Signer::from_base64_seed(bad).is_err(), "{bad}");
         }
+        // The debug form must not contain the seed.
         assert!(!format!("{:?}", signer()).contains(&ok));
     }
 
+    /// Sha256 is hex.
     #[test]
     fn sha256_is_hex() {
         assert_eq!(sha256_hex(b"abc"), "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
     }
 }
 
+/// Tests of the committed fixture.
 #[cfg(test)]
 mod fixture_tests {
     use crate::snapshot as snap;
     include!("../fixtures/snapshot_fixture.rs");
 
+    /// The committed fixture is what the code produces.
     #[test]
     fn the_committed_fixture_is_what_the_code_produces() {
         // Regenerate with `cargo run -p content-hub-core --example gen-snapshot-fixture > tests/contract/snapshot-fixture.json`.
@@ -295,6 +335,7 @@ mod fixture_tests {
         assert_eq!(committed, snapshot_fixture());
     }
 
+    /// The fixture verifies with the rust verifier.
     #[test]
     fn the_fixture_verifies_with_the_rust_verifier() {
         use base64::Engine;

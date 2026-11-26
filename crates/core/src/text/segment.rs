@@ -21,8 +21,11 @@ use crate::model::Markup;
 /// One selected target.
 #[derive(Debug, Clone)]
 pub struct SegmentTarget {
+    /// The target's id.
     pub id: String,
+    /// The markup it renders.
     pub markup: Markup,
+    /// Its limits.
     pub limits: Limits,
 }
 
@@ -31,15 +34,18 @@ pub struct SegmentTarget {
 pub struct Band {
     /// Code-point offsets.
     pub start: usize,
+    /// Where the band ends (a code-point offset).
     pub end: usize,
     /// Targets whose cut is at or beyond `end`, in the order they were given.
     pub fits: Vec<String>,
 }
 
+/// The result of splitting a source for several targets.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Segmentation {
     /// Each target's cut (code-point offset), in the order given.
     pub cuts: Vec<(String, usize)>,
+    /// The bands, in order, each with the targets it fits.
     pub bands: Vec<Band>,
 }
 
@@ -66,6 +72,7 @@ fn candidates(source: &str) -> Vec<usize> {
     out
 }
 
+/// The code-point offset of a byte offset.
 fn to_codepoints(source: &str, byte: usize) -> usize {
     source[..byte].chars().count()
 }
@@ -110,12 +117,14 @@ pub fn segment(source: &str, targets: &[SegmentTarget]) -> Segmentation {
     Segmentation { cuts, bands }
 }
 
+/// Unit tests for this module.
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::model::CountingMethod;
     use crate::text::count::CountRules;
 
+    /// A plain-text target that counts code points up to `limit`.
     fn target(id: &str, limit: u64) -> SegmentTarget {
         SegmentTarget {
             id: id.into(),
@@ -129,6 +138,7 @@ mod tests {
         }
     }
 
+    /// Bands follow the cuts.
     #[test]
     fn bands_follow_the_cuts() {
         let s = "abcdefghij";
@@ -144,6 +154,7 @@ mod tests {
         );
     }
 
+    /// Urls are never split.
     #[test]
     fn urls_are_never_split() {
         let s = "go https://example.org/abc now";
@@ -152,6 +163,7 @@ mod tests {
         assert_eq!(seg.cuts[0].1, 3);
     }
 
+    /// Graphemes are never split.
     #[test]
     fn graphemes_are_never_split() {
         let s = "ab👩‍💻cd";
@@ -160,6 +172,7 @@ mod tests {
         assert_eq!(seg.cuts[0].1, 2);
     }
 
+    /// Nothing fits gives a grey band.
     #[test]
     fn nothing_fits_gives_a_grey_band() {
         let seg = segment("abc", &[target("t", 0)]);

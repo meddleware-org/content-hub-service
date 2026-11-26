@@ -17,9 +17,13 @@
 
 #![forbid(unsafe_code)]
 
+/// Alerts sent to a webhook.
 pub mod alerts;
+/// The Prometheus metrics endpoint.
 pub mod metrics;
+/// The signed roadmap snapshot export.
 pub mod snapshot;
+/// Balance readings of watched wallets.
 pub mod watch;
 
 use std::sync::Arc;
@@ -51,18 +55,22 @@ pub struct WorkerConfig {
     pub poll: Duration,
     /// A `sending` row older than this becomes `unknown`. Must exceed the longest send (30 s per request).
     pub lease: Duration,
+    /// How a failed send is retried.
     pub retry: RetryPolicy,
     /// The posts-per-day ceiling per target (runtime caps can only lower it).
     pub daily_post_limit: i32,
     /// The spend ceilings (for alert levels and metrics).
     pub ceiling_total_usd_micros: i64,
+    /// The most one platform may cost in a month, in millionths of a US dollar.
     pub ceiling_per_platform_usd_micros: i64,
     /// How often Mastodon instance limits are refreshed.
     pub limits_every: Duration,
+    /// Where alerts go, if configured.
     pub alerts: Option<alerts::AlertConfig>,
 }
 
 impl Default for WorkerConfig {
+    /// Safe defaults: real sends off, production on, a 5-second poll, a 10-minute lease, the default retry policy and 5 posts a day.
     fn default() -> Self {
         WorkerConfig {
             live: false,
@@ -101,15 +109,19 @@ pub fn env_secrets() -> Secrets {
     Arc::new(|name: &str| if is_secret_ref(name) { std::env::var(name).ok().filter(|v| !v.is_empty()) } else { None })
 }
 
+/// Why the worker's work failed.
 #[derive(Debug, thiserror::Error)]
 pub enum WorkerError {
+    /// The database failed.
     #[error(transparent)]
     Store(#[from] content_hub_store::StoreError),
+    /// A state the worker's own rules say cannot happen.
     #[error("invariant: {0}")]
     Invariant(String),
 }
 
 impl From<sqlx::Error> for WorkerError {
+    /// A database error is a store error.
     fn from(e: sqlx::Error) -> Self {
         WorkerError::Store(e.into())
     }
@@ -118,18 +130,29 @@ impl From<sqlx::Error> for WorkerError {
 /// What one tick did.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Tick {
+    /// Nothing was due.
     Idle,
+    /// Publishing is paused.
     Paused,
+    /// An instance was claimed and put back (a cap or a switch stopped it before the send); its id follows.
     Deferred(i64),
+    /// An instance was stopped without a send; its id follows.
     Stopped(i64),
+    /// An instance was claimed and recorded as a dry run; its id follows.
     DryRun(i64),
+    /// An instance was sent; its id and its new status follow.
     Sent(i64, InstanceStatus),
 }
 
+/// The publishing worker: it claims due instances one at a time and sends them.
 pub struct Worker {
+    /// The database pool (the writer role).
     pub db: PgPool,
+    /// The HTTP client the publishers use.
     pub http: Http,
+    /// The configuration.
     pub cfg: WorkerConfig,
+    /// Looks a target's credential up by its variable name.
     pub secrets: Secrets,
     /// Tests only: replaces every definition's `base_url` (the database requires https; mocks are plain http).
     /// The binary always sets `None`.
@@ -137,6 +160,7 @@ pub struct Worker {
     pub base_override: Option<String>,
 }
 
+/// A random number in `[0, 1)` for retry jitter (0.5 if the random source fails).
 fn jitter() -> f64 {
     let mut b = [0u8; 8];
     if getrandom::fill(&mut b).is_err() {
@@ -149,11 +173,13 @@ impl Worker {
     /// Move stale `sending` rows to `unknown`.
     pub async fn janitor(&self) -> Result<Vec<i64>, WorkerError> {
         let mut tx = self.db.begin().await?;
+        // Rows still `sending` after the lease are moved to `unknown`, never back to `queued`: the send may have happened.
         let moved = q::janitor(&mut tx, self.cfg.lease.as_secs_f64()).await?;
         for id in &moved {
             audit::record(
                 &mut tx,
                 ACTOR,
+                // Each move is audited with the actor `system:worker`.
                 "instance.janitor",
                 "instance",
                 Some(id.to_string()),
@@ -172,14 +198,18 @@ impl Worker {
     /// Claim and handle at most one due instance.
     pub async fn tick(&self) -> Result<Tick, WorkerError> {
         let mut tx = self.db.begin().await?;
+        // The stop switch is read inside the claiming transaction, so a pause takes effect at the next claim.
         if settings::paused(&mut tx).await? {
             return Ok(Tick::Paused);
         }
+        // The claim locks the oldest due instance (skipping locked ones), so two workers never take the same row.
         let Some(c) = q::next_due(&mut tx).await? else { return Ok(Tick::Idle) };
         let mode: Option<PostingMode> = c.posting_mode.parse().ok();
         let kind = mode.and_then(|m| Kind::for_definition(&c.platform_code, m));
+        // A platform or target switched off after queueing stops the send before anything goes out.
         let stop = if !c.platform_enabled || !c.target_enabled {
             Some(format!("{} or its target {} was switched off", c.platform_code, c.target_name))
+        // Manual platforms are posted by a person, so the worker hands them back.
         } else if matches!(mode, Some(PostingMode::Manual | PostingMode::None) | None) {
             Some(format!("{} is posted by hand", c.platform_code))
         } else if kind.is_none() {
@@ -188,6 +218,7 @@ impl Worker {
             None
         };
         if let Some(why) = stop {
+            // A stop is a decision like any other: the instance moves to `manual_required` and the reservation is released.
             let d = delivery::stopped(&why);
             self.stop(&mut tx, &c, &d, None).await?;
             tx.commit().await?;
@@ -196,7 +227,9 @@ impl Worker {
         let Some(kind) = kind else { return Ok(Tick::Idle) };
         let limit =
             spend::daily_post_limit(&mut tx, c.platform_definition_id, c.target_id, self.cfg.daily_post_limit).await?;
+        // The daily post limit is checked per target, in UTC days.
         if q::sent_today(&mut tx, c.target_id).await? >= i64::from(limit) {
+            // Past the limit the instance waits until the next UTC midnight.
             let until = delivery::next_utc_midnight(Utc::now());
             q::defer(
                 &mut tx,
@@ -209,10 +242,12 @@ impl Worker {
             return Ok(Tick::Deferred(c.id));
         }
         let secret =
+            // The credential is looked up by the name the target stores, and only for platforms that need one.
             if kind.needs_secret() { c.target_secret_ref.as_deref().and_then(|n| (self.secrets)(n)) } else { None };
         let crosspost =
             c.target_config.get("crosspost_secret_ref").and_then(Value::as_str).and_then(|n| (self.secrets)(n));
         let now = Utc::now();
+        // Unless every live rule holds, the send is recorded as a dry run: the redacted request is stored and nothing leaves the process.
         if let Err(why) = live(&self.cfg, c.target_live, c.target_is_sandbox) {
             let ctx = context(&c, self.base(&c), kind, secret.as_deref(), crosspost.as_deref(), now, now);
             let request = content_hub_publish::dry_run(&ctx).unwrap_or_else(|e| json!({ "error": e }));
@@ -222,25 +257,33 @@ impl Worker {
             tracing::info!(instance = c.id, platform = %c.platform_code, "dry run recorded");
             return Ok(Tick::DryRun(c.id));
         }
+        // The state table is consulted at run time as well as tested: a move it does not allow is an invariant failure, not a send.
         check(Actor::Worker, InstanceStatus::Queued, InstanceStatus::Sending)
             .map_err(|e| WorkerError::Invariant(e.to_string()))?;
+        // Record the attempt and mark the instance `sending` in the same transaction.
         let attempt_id = q::begin_send(&mut tx, c.id, &c.payload_sha256).await?;
         let first = q::first_attempt_at(&mut tx, c.id).await?.unwrap_or(now);
+        // Committed before the external call: a crash after this point leaves a `sending` row for the janitor, never a silent double send.
         tx.commit().await?; // `sending` is durable before anything leaves the process.
 
         let ctx = context(&c, self.base(&c), kind, secret.as_deref(), crosspost.as_deref(), first, Utc::now());
+        // The only line that talks to a platform.
         let report = content_hub_publish::send(&self.http, &ctx).await;
+        // The claim counts this attempt.
         let attempts = u32::try_from(c.attempt_count).unwrap_or(0).saturating_add(1);
+        // The pure decision: what the outcome means for the instance, the retry and the spend.
         let d = delivery::decide(&report.sent, attempts, &self.cfg.retry, jitter());
         self.finish(&c, attempt_id, &d, &report).await?;
         tracing::info!(instance = c.id, platform = %c.platform_code, to = %d.to, "sent");
         Ok(Tick::Sent(c.id, d.to))
     }
 
+    /// The base URL to send to: the test override, else the platform's.
     fn base<'a>(&'a self, c: &'a Claim) -> Option<&'a str> {
         self.base_override.as_deref().or(c.base_url.as_deref())
     }
 
+    /// Record a stop: the instance goes back to the state the decision names, its reservation is released and the move is audited, all in the caller's transaction.
     async fn stop(
         &self,
         tx: &mut sqlx::PgConnection,
@@ -264,6 +307,7 @@ impl Worker {
         Ok(())
     }
 
+    /// Record a finished send: the attempt, the instance's new status and the spend ledger, in one transaction.
     async fn finish(
         &self,
         c: &Claim,
@@ -272,6 +316,7 @@ impl Worker {
         report: &content_hub_publish::Report,
     ) -> Result<(), WorkerError> {
         let mut tx = self.db.begin().await?;
+        // A retry delay becomes a due time.
         let next = d.retry_in.and_then(|r| chrono::Duration::from_std(r).ok()).map(|r| Utc::now() + r);
         let outcome = d.outcome.map_or("unknown", |o| o.as_str());
         let f = Finish {
@@ -284,8 +329,10 @@ impl Worker {
             response_excerpt: report.excerpt.as_deref(),
             request_redacted: &report.request,
         };
+        // `finish` changes the row only if it is still `sending`; if the janitor got there first it does nothing and says so.
         if q::finish(&mut tx, c.id, attempt_id, &f).await? {
             match d.ledger {
+                // A send costs what was estimated, replacing the reservation.
                 Ledger::Settle => spend::settle(&mut tx, c.id, c.cost_estimate_usd_micros, "sent").await?,
                 Ledger::Release => {
                     spend::release(&mut tx, c.id, "not sent").await?;
@@ -297,6 +344,7 @@ impl Worker {
             audit::record(
                 &mut tx,
                 ACTOR,
+                // The result is audited for the operator, who decides what the instance really is.
                 "instance.late_result",
                 "instance",
                 Some(c.id.to_string()),
@@ -317,6 +365,7 @@ impl Worker {
     pub async fn refresh_mastodon_limits(&self) -> Result<usize, WorkerError> {
         let mut c = self.db.acquire().await?;
         let mut n = 0;
+        // Each Mastodon instance has its own limits, kept in the target's configuration.
         for t in targets::enabled_for_code(&mut c, "MASTODON").await? {
             let fresh = t
                 .config
@@ -329,6 +378,7 @@ impl Worker {
             if fresh {
                 continue;
             }
+            // A target with no valid instance address is skipped.
             let Ok(base) = mastodon::base(t.external_ref.as_deref()) else { continue };
             match content_hub_publish::mastodon_limits(&self.http, &base).await {
                 Ok(l) => {
@@ -346,15 +396,19 @@ impl Worker {
 
     /// Run until `stop` turns true: janitor, claims, and the periodic jobs. A send in progress always finishes.
     pub async fn run(self: Arc<Self>, mut stop: tokio::sync::watch::Receiver<bool>) {
+        // When the periodic jobs last ran.
         let mut last_limits: Option<std::time::Instant> = None;
         let mut last_alert: Option<std::time::Instant> = None;
         loop {
+            // A send in progress always finishes: the flag is only read between ticks.
             if *stop.borrow() {
                 break;
             }
+            // Every tick starts by cleaning up after crashed sends.
             if let Err(e) = self.janitor().await {
                 tracing::error!(error = %e, "janitor");
             }
+            // The Mastodon limits are checked hourly; each target is refreshed only when its own data is older than `limits_every`.
             if last_limits.is_none_or(|t| t.elapsed() >= Duration::from_secs(3600)) {
                 last_limits = Some(std::time::Instant::now());
                 if let Err(e) = self.refresh_mastodon_limits().await {
@@ -362,6 +416,7 @@ impl Worker {
                 }
             }
             if let Some(a) = &self.cfg.alerts
+                // Alerts are evaluated every minute.
                 && last_alert.is_none_or(|t| t.elapsed() >= Duration::from_secs(60))
             {
                 last_alert = Some(std::time::Instant::now());
@@ -388,6 +443,7 @@ impl Worker {
     }
 }
 
+/// Build a send context from a claim and the resolved credentials.
 fn context<'a>(
     c: &'a Claim,
     base_url: Option<&'a str>,
@@ -413,5 +469,6 @@ fn context<'a>(
     }
 }
 
+/// Unit tests for this module.
 #[cfg(test)]
 mod tests;

@@ -19,23 +19,29 @@
 #     /public/v1/snapshot with the same signer address; a bad seed or an unallowed mainnet export exits non-zero.
 set -euo pipefail
 
+# The image to test, a required argument, and the container tool (docker, or podman when DOCKER=podman).
 image="${1:?usage: smoke.sh <image>}"
 docker="${DOCKER:-docker}"
 here="$(cd "$(dirname "$0")" && pwd)"
+# Fixed host ports, one for each process, chosen to be unlikely to clash; the containers share the host network.
 public_port=18081
 admin_port=18082
 worker_port=18083
 pgport=55443
+# The database container and the directory holding its throwaway certificates.
 pgdir="$(mktemp -d)"
 pgname="content-hub-smoke-pg"
 
+# The image must run as the distroless non-root user, or the cluster's security settings would reject it.
 user="$("$docker" image inspect --format '{{.Config.User}}' "$image")"
 if [ "$user" != "65532:65532" ]; then
   echo "image runs as '${user}', want 65532:65532" >&2
   exit 1
 fi
 
+# Container ids, empty until started, so cleanup knows which ones exist.
 public="" admin="" worker=""
+# Print the tail of each container's log (to help a failed run), remove the containers and stop the database. Runs on any exit.
 cleanup() {
   for c in "$public" "$admin" "$worker"; do
     [ -n "$c" ] || continue
@@ -45,14 +51,18 @@ cleanup() {
   done
   DOCKER="$docker" PG_NAME="$pgname" PG_DIR="$pgdir" bash "$here/test-postgres.sh" stop > /dev/null 2>&1 || true
 }
+# Clean up on success, failure or interrupt.
 trap cleanup EXIT
 
 # 1. PostgreSQL with TLS, and the service's database provisioned as the tier does it.
 DOCKER="$docker" PG_NAME="$pgname" PG_PORT="$pgport" PG_DIR="$pgdir" bash "$here/test-postgres.sh" start > /dev/null
+# A random password for each of the three roles, for this run only.
 own_pw="$(openssl rand -hex 16)"
 app_pw="$(openssl rand -hex 16)"
 pub_pw="$(openssl rand -hex 16)"
+# Run psql inside the database container as the superuser, stopping at the first SQL error; extra arguments pass through.
 psql_admin() { "$docker" exec -i "$pgname" psql -X -q -v ON_ERROR_STOP=1 -U postgres -h 127.0.0.1 "$@"; }
+# The three roles as the database tier creates them: an owner that migrates, a writer, and a read-only role.
 psql_admin -d postgres << SQL
 CREATE ROLE content_hub_migrate LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION CONNECTION LIMIT 2 PASSWORD '${own_pw}';
 CREATE ROLE content_hub_app LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION CONNECTION LIMIT 12 PASSWORD '${app_pw}';
@@ -65,6 +75,7 @@ REVOKE ALL ON DATABASE content_hub FROM PUBLIC;
 GRANT CONNECT, TEMPORARY, CREATE ON DATABASE content_hub TO content_hub_migrate;
 GRANT CONNECT ON DATABASE content_hub TO content_hub_app, content_hub_public;
 SQL
+# Grants: the owner has the schemas, the writer can change rows in `hub`, and the read-only role can only select.
 psql_admin -d content_hub << SQL
 REVOKE ALL ON SCHEMA public FROM PUBLIC;
 GRANT USAGE, CREATE ON SCHEMA public TO content_hub_migrate;
@@ -74,15 +85,19 @@ CREATE SCHEMA hub AUTHORIZATION content_hub_migrate;
 GRANT USAGE ON SCHEMA hub TO content_hub_app;
 ALTER DEFAULT PRIVILEGES FOR ROLE content_hub_migrate IN SCHEMA hub GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO content_hub_app;
 SQL
+# The database URL for a role and password, with full certificate verification against the throwaway CA.
 db_url() { echo "postgres://$1:$2@127.0.0.1:${pgport}/content_hub?sslmode=verify-full&sslrootcert=/etc/postgres-ca/ca.crt"; }
 
+# The hardening every container gets, as in the cluster: read-only root, no capabilities, no new privileges.
 common=(--network host --read-only --cap-drop ALL --security-opt no-new-privileges
   -v "${pgdir}/certs/ca.crt:/etc/postgres-ca/ca.crt:ro" -e DB_POOL_SIZE=2)
 # Production settings with example values (no request below carries an Access token, so nothing is fetched).
 public_env=(-e HOME_PAGE_URL=https://roadmap.example.org -e FEEDS_BASE_URL=https://feeds.example.org)
+# The same for the admin process; the role lookup points at a closed port, which is never reached here.
 admin_env=(-e ACCESS_TEAM_DOMAIN=https://team.example.org -e ACCESS_AUD=smoke -e ADMIN_ORIGIN=https://hub.example.org
   -e KETO_READ_URL=http://127.0.0.1:1)
 
+# Request a path on a local port and fail the run unless the status is the one expected.
 expect() { # expect <port> <method> <path> <status>
   local got
   got="$(curl -s -o /dev/null -w '%{http_code}' -X "$2" "http://127.0.0.1:$1$3")"
@@ -91,6 +106,7 @@ expect() { # expect <port> <method> <path> <status>
     exit 1
   fi
 }
+# Wait up to ten seconds for a process to answer on its port, or fail the run.
 wait_up() {
   for _ in $(seq 1 40); do
     curl -s -o /dev/null "http://127.0.0.1:$1/healthz" && return 0
@@ -101,6 +117,7 @@ wait_up() {
 }
 
 # 2. The binary.
+# A bare run with no database settings proves the binary starts and parses its arguments.
 "$docker" run --rm "${common[@]}" "$image" --version > /dev/null
 
 # 3. Before migrating: up, not ready.
@@ -110,6 +127,7 @@ admin="$("$docker" run -d "${common[@]}" "${admin_env[@]}" -e "DATABASE_URL=$(db
   -e LISTEN_ADDR="127.0.0.1:${admin_port}" "$image" admin)"
 worker="$("$docker" run -d "${common[@]}" -e "DATABASE_URL=$(db_url content_hub_app "$app_pw")" \
   -e LISTEN_ADDR="127.0.0.1:${worker_port}" "$image" worker)"
+# All three start before the schema exists, to show that they come up but report "not ready".
 wait_up "$public_port"
 wait_up "$admin_port"
 wait_up "$worker_port"
@@ -131,6 +149,7 @@ done
 expect "$public_port" GET /readyz 200
 expect "$admin_port" GET /readyz 200
 expect "$worker_port" GET /readyz 200
+# The worker's metrics must show a dry run (not live), nothing queued and publishing not paused.
 metrics="$(curl -s "http://127.0.0.1:${worker_port}/metrics")"
 for want in 'content_hub_instances{status="queued"} 0' 'content_hub_worker_live 0' 'content_hub_publishing_paused 0'; do
   if ! grep -qF "$want" <<< "$metrics"; then
@@ -138,6 +157,7 @@ for want in 'content_hub_instances{status="queued"} 0' 'content_hub_worker_live 
     exit 1
   fi
 done
+# Each process serves only its own routes: the others answer 404, and a wrong method answers 405.
 expect "$worker_port" GET /api/v1/me 404
 expect "$public_port" GET /public/v1/roadmap 200
 expect "$public_port" GET /public/v1/roadmap-bot 200
@@ -168,6 +188,7 @@ if "$docker" run --rm "${common[@]}" -e "DATABASE_URL=$(db_url content_hub_app "
 fi
 
 # 8. The snapshot: a key is generated privately; an export signs and records; the public process serves it.
+# The key is written under a temporary file system, and the output may carry the address but nothing seed-like.
 key_out="$("$docker" run --rm "${common[@]}" --tmpfs /tmp "$image" snapshot-key --out /tmp/seed)"
 if ! grep -Eq '"address":"0x[0-9a-f]{64}"' <<< "$key_out"; then
   echo "FAIL: snapshot-key did not print an address: $key_out" >&2
@@ -177,12 +198,15 @@ if grep -Eqi 'seed"?:' <<< "${key_out//seed_file/}"; then
   echo "FAIL: snapshot-key printed something seed-like: $key_out" >&2
   exit 1
 fi
+# A random signing seed for the export steps; the key file above is separate.
 seed="$(openssl rand -base64 32)"
 addr="$("$docker" run --rm "${common[@]}" -e "SNAPSHOT_SIGNER_SEED=$seed" "$image" snapshot-address)"
 [[ "$addr" =~ ^0x[0-9a-f]{64}$ ]] || { echo "FAIL: snapshot-address printed '$addr'" >&2; exit 1; }
+# Run one snapshot export as the writer with the test seed, discarding the logs.
 export_run() {
   "$docker" run --rm "${common[@]}" -e "DATABASE_URL=$(db_url content_hub_app "$app_pw")" -e "SNAPSHOT_SIGNER_SEED=$seed" "$image" export-snapshot 2> /dev/null
 }
+# The first export signs and records a snapshot; the second finds nothing changed.
 first="$(export_run)"
 grep -q '"outcome":"signed"' <<< "$first" || { echo "FAIL: first export: $first" >&2; exit 1; }
 second="$(export_run)"
@@ -202,6 +226,7 @@ fi
 
 # 9. Erasing a person (docs/PERSONAL_DATA.md): the owner-run script removes every trace of a subject, keeps the audit log's
 # shape and its append-only trigger, refuses an unknown subject, and the application role still cannot touch the log.
+# Two people's rows, in users, posts and the audit log, so that the erasure can be checked on one and not the other.
 psql_admin -d content_hub << 'SQL'
 INSERT INTO hub.users (subject, display_name) VALUES ('smoke-person', 'smoke.person@example.org'), ('smoke-other', 'Other Person');
 INSERT INTO hub.posts (title, body_markdown, status, created_by) VALUES ('Erase me', 'x', 'draft', 'smoke-person'), ('Keep me', 'y', 'draft', 'smoke-other');
@@ -209,20 +234,25 @@ INSERT INTO hub.audit_log (actor_subject, action, entity_type, entity_id, after)
   VALUES ('smoke-person', 'post.create', 'post', '1', '{"created_by": "smoke-person", "title": "Erase me"}'), ('smoke-other', 'post.create', 'post', '2', '{"created_by": "smoke-other"}');
 SQL
 "$docker" cp "$here/erase-person.sql" "$pgname":/tmp/erase-person.sql
+# Run psql as the owner role (the one that runs erase-person.sql in production).
 owner_psql() { "$docker" exec -i -e "PGPASSWORD=$own_pw" "$pgname" psql -X -q -U content_hub_migrate -h 127.0.0.1 -d content_hub "$@"; }
 if owner_psql -v subject=smoke-nobody -f /tmp/erase-person.sql > /dev/null 2>&1; then
   echo "FAIL: erase-person.sql accepted a subject nothing is stored for" >&2; exit 1
 fi
 out="$(owner_psql -v subject=smoke-person -f /tmp/erase-person.sql 2>&1)" \
   || { echo "FAIL: erase-person.sql failed: $out" >&2; exit 1; }
+# Nothing of the erased person may remain anywhere, including inside the audit log's JSON.
 left="$(psql_admin -d content_hub -At -c "SELECT (SELECT count(*) FROM hub.users WHERE subject = 'smoke-person') + (SELECT count(*) FROM hub.posts WHERE created_by = 'smoke-person') + (SELECT count(*) FROM hub.audit_log WHERE actor_subject = 'smoke-person' OR after::text LIKE '%smoke-person%')")"
 [[ "$left" == 0 ]] || { echo "FAIL: $left trace(s) of the erased subject remain" >&2; exit 1; }
+# The other person's three rows stay, and the erased person's audit row stays as a pseudonym (4 in all).
 kept="$(psql_admin -d content_hub -At -c "SELECT (SELECT count(*) FROM hub.users WHERE subject = 'smoke-other') + (SELECT count(*) FROM hub.posts WHERE created_by = 'smoke-other') + (SELECT count(*) FROM hub.audit_log WHERE actor_subject = 'smoke-other') + (SELECT count(*) FROM hub.audit_log WHERE actor_subject LIKE 'erased-%' AND after::text LIKE '%erased-%')")"
 [[ "$kept" == 4 ]] || { echo "FAIL: expected the other person's rows and the pseudonymised audit row to remain (got $kept)" >&2; exit 1; }
+# The audit log's append-only trigger must be enabled again after the erasure.
 trg="$(psql_admin -d content_hub -At -c "SELECT tgenabled FROM pg_trigger WHERE tgname = 'audit_log_append_only'")"
 [[ "$trg" == O ]] || { echo "FAIL: the audit log trigger is not enabled after the erasure" >&2; exit 1; }
 if psql_admin -d content_hub -c "SET ROLE content_hub_app; UPDATE hub.audit_log SET action = 'x.y'" > /dev/null 2>&1; then
   echo "FAIL: the application role can update the audit log" >&2; exit 1
 fi
 
+# Reached only if every check above passed (the script stops at the first failure).
 echo "smoke: ok"

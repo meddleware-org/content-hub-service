@@ -18,50 +18,73 @@ pub const GENERIC_DEFINITIONS_JSON: &str = include_str!("../../../seed/platform-
 /// The placeholders an URL template may use. Each is replaced by the URL-encoded value.
 pub const TEMPLATE_PLACEHOLDERS: &[&str] = &["text", "url", "title", "body", "subreddit", "target_base"];
 
+/// The platform definitions file: its schema version, when the limits were last checked against the platforms' documents, and the definitions.
 #[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct DefinitionsFile {
+    /// The version of the file's format.
     pub schema_version: u32,
+    /// The date the limits and rules were last checked against each platform's own documentation.
     pub verified_at: String,
+    /// One definition per platform or channel.
     pub definitions: Vec<PlatformDefinitionSeed>,
 }
 
+/// One platform definition as the file states it, before it is stored.
 #[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PlatformDefinitionSeed {
+    /// The stable code (`BLUESKY`, `DISCORD_…`) that ties a definition to its publisher.
     pub code: String,
+    /// The name shown to the operator.
     pub name: String,
+    /// What kind of destination it is.
     pub category: PlatformCategory,
+    /// How a post is delivered: by the hub's own feed, a webhook, an API, a link the operator follows, or not at all.
     pub posting_mode: PostingMode,
+    /// How the platform counts characters, when it limits length.
     #[serde(default)]
     pub counting_method: Option<CountingMethod>,
+    /// The main length limit, in the counting method's unit.
     #[serde(default)]
     pub primary_limit: Option<u32>,
+    /// Further limits (links, images, a title) keyed by name.
     #[serde(default)]
     pub secondary_limits: BTreeMap<String, serde_json::Value>,
+    /// The markup the platform renders.
     pub markup: Markup,
+    /// Whether the platform takes media.
     #[serde(default)]
     pub supports_media: bool,
+    /// The platform's base URL, for the ones with an API or a webhook host.
     #[serde(default)]
     pub base_url: Option<String>,
+    /// The link templates for manual posting, with `{placeholders}`.
     #[serde(default)]
     pub url_templates: BTreeMap<String, String>,
+    /// What a post costs on the platform, as its pricing document states.
     #[serde(default)]
     pub cost_model: BTreeMap<String, serde_json::Value>,
+    /// Whether the definition is switched on.
     pub enabled: bool,
+    /// Free text the operator can read: where the limits came from and any caveat.
     pub notes: String,
 }
 
+/// Why a definitions file was refused.
 #[derive(Debug, thiserror::Error)]
 pub enum DefinitionsError {
+    /// The file is not JSON of the expected shape.
     #[error("the platform definitions file is not valid: {0}")]
     Parse(#[from] serde_json::Error),
+    /// The file parsed but breaks a rule; each problem is one line.
     #[error("the platform definitions file is not valid:\n  {}", .0.join("\n  "))]
     Invalid(Vec<String>),
 }
 
 /// Parse and validate a definitions file.
 pub fn parse(json: &str) -> Result<DefinitionsFile, DefinitionsError> {
+    // Parsing refuses unknown fields and values; validation then reports every semantic problem at once.
     let file: DefinitionsFile = serde_json::from_str(json)?;
     let problems = validate(&file);
     if problems.is_empty() { Ok(file) } else { Err(DefinitionsError::Invalid(problems)) }
@@ -69,14 +92,17 @@ pub fn parse(json: &str) -> Result<DefinitionsFile, DefinitionsError> {
 
 /// The embedded generic definitions.
 pub fn generic() -> Result<DefinitionsFile, DefinitionsError> {
+    // The embedded file goes through the same validation as any other, so a broken edit fails the tests.
     parse(GENERIC_DEFINITIONS_JSON)
 }
 
 /// Check one URL template: it starts with `https://` or `{target_base}/` and uses only known placeholders.
 pub fn check_template(t: &str) -> Result<(), String> {
+    // A template begins with a fixed https address or the target's own base.
     if !(t.starts_with("https://") || t.starts_with("{target_base}/")) {
         return Err("a template must start with https:// or {target_base}/".into());
     }
+    // Every placeholder must be one of the known names.
     for x in template_placeholders(t)? {
         if !TEMPLATE_PLACEHOLDERS.contains(&x) {
             return Err(format!("unknown placeholder {{{x}}}"));
@@ -85,15 +111,18 @@ pub fn check_template(t: &str) -> Result<(), String> {
     Ok(())
 }
 
+/// The names of the `{placeholders}` in a template, or an error for an unclosed or stray brace.
 fn template_placeholders(t: &str) -> Result<Vec<&str>, String> {
     let mut out = Vec::new();
     let mut rest = t;
     while let Some(open) = rest.find('{') {
         let after = &rest[open + 1..];
+        // An opening brace with no closing one is malformed.
         let close = after.find('}').ok_or_else(|| format!("unclosed placeholder in {t:?}"))?;
         out.push(&after[..close]);
         rest = &after[close + 1..];
     }
+    // A closing brace left over after the last placeholder is stray.
     if rest.contains('}') {
         return Err(format!("stray '}}' in {t:?}"));
     }
@@ -106,9 +135,11 @@ pub fn validate(file: &DefinitionsFile) -> Vec<String> {
     if file.schema_version != 1 {
         p.push(format!("schema_version {} (expected 1)", file.schema_version));
     }
+    // The codes seen so far, to catch a duplicate.
     let mut codes = BTreeSet::new();
     for d in &file.definitions {
         let c = &d.code;
+        // A code is capital letters, digits and underscores, so it can name a publisher and a credential variable.
         if !is_platform_code(c) {
             p.push(format!("{c}: not a platform code"));
         }
@@ -121,6 +152,7 @@ pub fn validate(file: &DefinitionsFile) -> Vec<String> {
         if d.notes.chars().count() > 4000 {
             p.push(format!("{c}: notes longer than 4000 characters"));
         }
+        // A limit with no way to count against it means nothing.
         if d.primary_limit.is_some() && d.counting_method.is_none() {
             p.push(format!("{c}: a primary_limit needs a counting_method"));
         }
@@ -128,12 +160,14 @@ pub fn validate(file: &DefinitionsFile) -> Vec<String> {
             p.push(format!("{c}: primary_limit must be positive"));
         }
         for (k, v) in &d.secondary_limits {
+            // A further limit is a positive number, or a non-empty string for a setting such as an instance default.
             let ok = v.as_u64().is_some_and(|n| n > 0) || v.as_str().is_some_and(|s| !s.is_empty());
             if !ok {
                 p.push(format!("{c}: secondary limit {k} must be a positive integer or a non-empty string"));
             }
         }
         if let Some(u) = &d.base_url
+            // A base address must be https without spaces, like the database constraint.
             && (!u.starts_with("https://") || u.contains(char::is_whitespace))
         {
             p.push(format!("{c}: base_url must be an https URL"));
@@ -163,26 +197,33 @@ pub fn validate(file: &DefinitionsFile) -> Vec<String> {
     p
 }
 
+/// Unit tests for this module.
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    /// The definition with a code, panicking when it is missing.
     fn by_code(f: &DefinitionsFile, code: &str) -> PlatformDefinitionSeed {
         f.definitions.iter().find(|d| d.code == code).cloned().unwrap_or_else(|| panic!("no {code}"))
     }
 
+    /// The generic file is valid.
     #[test]
     fn the_generic_file_is_valid() {
         let f = generic().expect("valid");
+        // The count is pinned so a definition cannot be added or removed without noticing.
         assert_eq!(f.definitions.len(), 38);
     }
 
+    /// The rows the prompts require have their documented shape.
     #[test]
     fn the_rows_the_prompts_require_have_their_documented_shape() {
         use CountingMethod::*;
         use PostingMode::{Api, Feed, Manual, Webhook};
         let f = generic().expect("valid");
+        /// What a row of the shape table states: code, posting mode, counting method, limit and markup.
         type Shape = (&'static str, PostingMode, Option<CountingMethod>, Option<u32>, Markup);
+        // The limits and rules each publisher relies on, checked against the platforms' documents on the file's `verified_at` date.
         let rows: &[Shape] = &[
             ("DISCORD_ANNOUNCEMENTS", Webhook, Some(Codepoints), Some(2000), Markup::DiscordMd),
             ("TELEGRAM_BROADCAST", Api, Some(Utf16), Some(4096), Markup::TelegramHtml),
@@ -209,6 +250,7 @@ mod tests {
         assert_eq!(by_code(&f, "MASTODON").secondary_limits["url_weight"], 23);
     }
 
+    /// Paid and unevaluated publishers ship disabled.
     #[test]
     fn paid_and_unevaluated_publishers_ship_disabled() {
         let f = generic().expect("valid");
@@ -220,6 +262,7 @@ mod tests {
         }
     }
 
+    /// Validation reports every problem.
     #[test]
     fn validation_reports_every_problem() {
         let bad = r#"{"schema_version": 2, "verified_at": "x", "definitions": [
@@ -246,6 +289,7 @@ mod tests {
         }
     }
 
+    /// Unknown fields and values are refused.
     #[test]
     fn unknown_fields_and_values_are_refused() {
         let extra = r#"{"schema_version": 1, "verified_at": "x", "definitions": [
@@ -256,6 +300,7 @@ mod tests {
         assert!(matches!(parse(value), Err(DefinitionsError::Parse(_))));
     }
 
+    /// Placeholders parse strictly.
     #[test]
     fn placeholders_parse_strictly() {
         assert_eq!(template_placeholders("https://a/?t={text}&u={url}").expect("ok"), vec!["text", "url"]);

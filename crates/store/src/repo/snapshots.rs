@@ -7,35 +7,59 @@ use sqlx::PgConnection;
 
 use crate::Result;
 
+/// One stored roadmap snapshot.
 #[derive(Debug, Clone, Serialize)]
 pub struct Snapshot {
+    /// The snapshot's id.
     pub id: i64,
+    /// The network it is for.
     pub network: String,
+    /// When it was generated.
     pub generated_at: DateTime<Utc>,
+    /// The version of the document's format.
     pub schema_version: i32,
+    /// The SHA-256 of the document.
     pub sha256: String,
+    /// The document's size in bytes.
     pub byte_size: i32,
+    /// The Sui personal-message signature, base64.
     pub signature: String,
+    /// The signer's Sui address.
     pub signer_address: String,
+    /// The Walrus blob id, if stored.
     pub blob_id: Option<String>,
+    /// The Sui object id of the blob, if stored.
     pub object_id: Option<String>,
+    /// How many Walrus epochs it was stored for.
     pub epochs: Option<i32>,
+    /// When the storage is estimated to run out.
     pub expires_at: Option<DateTime<Utc>>,
 }
 
 /// What to record.
 #[derive(Debug, Clone)]
 pub struct NewSnapshot<'a> {
+    /// The network.
     pub network: &'a str,
+    /// When it was generated.
     pub generated_at: DateTime<Utc>,
+    /// The document format version.
     pub schema_version: i32,
+    /// The SHA-256 of the document.
     pub sha256: &'a str,
+    /// The size in bytes.
     pub byte_size: i32,
+    /// The signature, base64.
     pub signature: &'a str,
+    /// The signer's Sui address.
     pub signer_address: &'a str,
+    /// The Walrus blob id, if stored.
     pub blob_id: Option<&'a str>,
+    /// The Sui object id, if stored.
     pub object_id: Option<&'a str>,
+    /// The Walrus epochs, if stored.
     pub epochs: Option<i32>,
+    /// When the storage runs out, if stored.
     pub expires_at: Option<DateTime<Utc>>,
 }
 
@@ -86,6 +110,7 @@ pub async fn try_lock(conn: &mut PgConnection) -> Result<bool> {
     Ok(sqlx::query_scalar!(r#"SELECT pg_try_advisory_lock(0x6368626578706f72) AS "locked!""#).fetch_one(conn).await?)
 }
 
+/// Release the export's session lock.
 pub async fn unlock(conn: &mut PgConnection) -> Result<()> {
     sqlx::query_scalar!(r#"SELECT pg_advisory_unlock(0x6368626578706f72) AS "unlocked!""#).fetch_one(conn).await?;
     Ok(())

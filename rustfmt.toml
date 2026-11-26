@@ -1,2 +1,5 @@
+# Formatting rules for `cargo fmt`; CI runs `cargo fmt --check`, so a file that does not match fails the build.
+# Lines may be up to 120 characters, wider than the default 100.
 max_width = 120
+# Short expressions, such as a struct literal or an `if` with a single statement, stay on one line up to the width.
 use_small_heuristics = "Max"

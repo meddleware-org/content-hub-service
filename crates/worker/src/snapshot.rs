@@ -23,6 +23,7 @@ use sqlx::PgPool;
 /// The audit-log actor of an export.
 pub const EXPORT_ACTOR: &str = "system:snapshot";
 
+/// How the roadmap snapshot is exported.
 #[derive(Debug, Clone)]
 pub struct ExportConfig {
     /// `localnet`, `testnet` or `mainnet`.
@@ -62,34 +63,71 @@ impl ExportConfig {
     }
 }
 
+/// What an export did.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(tag = "outcome", rename_all = "snake_case")]
 pub enum Outcome {
     /// Nothing changed and the storage is not near its end.
-    Unchanged { sha256: String, expires_at: Option<DateTime<Utc>> },
+    /// Nothing changed and the storage is not near its end.
+    Unchanged {
+        /// The SHA-256 of the unchanged document.
+        sha256: String,
+        /// When its storage is estimated to run out.
+        expires_at: Option<DateTime<Utc>>,
+    },
     /// The content changed, but the last snapshot is younger than the minimum interval.
-    TooSoon { sha256: String, next_after: DateTime<Utc> },
+    /// The content changed but the last snapshot is too recent.
+    TooSoon {
+        /// The SHA-256 of the new document.
+        sha256: String,
+        /// The earliest time a new snapshot may be taken.
+        next_after: DateTime<Utc>,
+    },
     /// Another export is running.
     Busy,
     /// Signed and recorded without storage (no publisher configured).
-    Signed { sha256: String, signer: String },
+    /// Signed and recorded without storage.
+    Signed {
+        /// The SHA-256 of the document.
+        sha256: String,
+        /// The signer's address.
+        signer: String,
+    },
     /// Signed, stored and recorded.
-    Stored { sha256: String, signer: String, blob_id: String, expires_at: DateTime<Utc>, renewed: bool },
+    /// Signed, stored and recorded.
+    Stored {
+        /// The SHA-256 of the document.
+        sha256: String,
+        /// The signer's address.
+        signer: String,
+        /// The Walrus blob id.
+        blob_id: String,
+        /// When the storage is estimated to run out.
+        expires_at: DateTime<Utc>,
+        /// Whether this renewed the storage of an unchanged document.
+        renewed: bool,
+    },
 }
 
+/// Why an export failed.
 #[derive(Debug, thiserror::Error)]
 pub enum ExportError {
+    /// The database failed.
     #[error(transparent)]
     Store(#[from] content_hub_store::StoreError),
+    /// The document could not be made canonical or signed.
     #[error(transparent)]
     Snapshot(#[from] SnapshotError),
+    /// The blob could not be stored.
     #[error(transparent)]
     Blob(#[from] BlobError),
+    /// The roadmap could not be read.
     #[error("the roadmap could not be read: {0}")]
     Read(String),
 }
 
 impl From<sqlx::Error> for ExportError {
+    /// A database error is a store error.
     fn from(e: sqlx::Error) -> Self {
         ExportError::Store(e.into())
     }
@@ -124,6 +162,7 @@ pub async fn export<S: BlobStore>(
     result
 }
 
+/// Run the export while holding the session lock: build and sign the document, compare it with the last snapshot, and store and record it when it should be.
 async fn export_locked<S: BlobStore>(
     conn: &mut sqlx::PgConnection,
     signer: &Signer,
@@ -201,6 +240,7 @@ async fn export_locked<S: BlobStore>(
     })
 }
 
+/// Unit tests for this module.
 #[cfg(test)]
 #[path = "snapshot_tests.rs"]
 mod tests;

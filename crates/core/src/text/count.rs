@@ -22,6 +22,7 @@ use crate::model::CountingMethod;
 /// How to count one text.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CountRules {
+    /// How characters are counted.
     pub method: CountingMethod,
     /// Each URL counts as this many characters (X: always 23).
     pub url_weight: Option<u32>,
@@ -30,6 +31,7 @@ pub struct CountRules {
 }
 
 impl CountRules {
+    /// Rules with no special treatment of links or mentions: count the text as it is.
     pub const fn plain(method: CountingMethod) -> Self {
         CountRules { method, url_weight: None, mention_local_part: false }
     }
@@ -81,6 +83,7 @@ fn substitute(text: &str, url_weight: Option<u32>, mention_local_part: bool) -> 
     out
 }
 
+/// The weight X gives one character: 1 up to U+10FF and in three punctuation ranges (U+2000 to U+200D, U+2010 to U+201F, U+2032 to U+2037), 2 for everything else.
 fn x_char_weight(c: char) -> u64 {
     let u = c as u32;
     if u <= 0x10FF || (0x2000..=0x200D).contains(&u) || (0x2010..=0x201F).contains(&u) || (0x2032..=0x2037).contains(&u)
@@ -91,6 +94,7 @@ fn x_char_weight(c: char) -> u64 {
     }
 }
 
+/// Whether a grapheme cluster is an emoji sequence (more than one code point with a joiner, a variation selector, a keycap, a skin tone or an emoji-plane character), which X counts as 2.
 fn is_emoji_sequence(g: &str) -> bool {
     let mut n = 0;
     let mut marker = false;
@@ -104,14 +108,19 @@ fn is_emoji_sequence(g: &str) -> bool {
     n > 1 && marker
 }
 
+/// The length of a text as X counts it: NFC-normalised, each link as 23, each grapheme weighed by `x_char_weight` (an emoji sequence as 2).
 fn x_weighted(text: &str) -> u64 {
+    // X counts the NFC form, so a composed and a decomposed letter weigh the same.
     let normal: String = text.nfc().collect();
+    // Each link is replaced by a placeholder 23 long before counting.
     let substituted = substitute(&normal, Some(X_URL_WEIGHT), false);
+    // Count per grapheme cluster: an emoji sequence is 2, anything else the sum of its characters' weights.
     substituted.graphemes(true).map(|g| if is_emoji_sequence(g) { 2 } else { g.chars().map(x_char_weight).sum() }).sum()
 }
 
 /// Count `text` under `rules`.
 pub fn count(rules: &CountRules, text: &str) -> u64 {
+    // X has its own algorithm; the other methods share the substitution below.
     if rules.method == CountingMethod::XWeighted {
         return x_weighted(text);
     }
@@ -129,15 +138,18 @@ pub fn count(rules: &CountRules, text: &str) -> u64 {
     }
 }
 
+/// Unit tests for this module.
 #[cfg(test)]
 mod tests {
     use super::*;
     use CountingMethod::*;
 
+    /// Count `s` by method `m` with no special link or mention rules.
     fn c(m: CountingMethod, s: &str) -> u64 {
         count(&CountRules::plain(m), s)
     }
 
+    /// The basic units.
     #[test]
     fn the_basic_units() {
         let s = "aé😀👩‍💻";
@@ -147,6 +159,7 @@ mod tests {
         assert_eq!(c(Graphemes, s), 4);
     }
 
+    /// X weights ranges emoji and urls.
     #[test]
     fn x_weights_ranges_emoji_and_urls() {
         assert_eq!(c(XWeighted, "hello"), 5);
@@ -158,6 +171,7 @@ mod tests {
         assert_eq!(c(XWeighted, "e\u{301}"), 1);
     }
 
+    /// Mastodon rules.
     #[test]
     fn mastodon_rules() {
         let r = CountRules { method: Graphemes, url_weight: Some(23), mention_local_part: true };
@@ -166,6 +180,7 @@ mod tests {
     }
 
     proptest::proptest! {
+        /// Counts never panic and are ordered.
         #[test]
         fn counts_never_panic_and_are_ordered(s in "\\PC{0,200}") {
             let g = c(Graphemes, &s);

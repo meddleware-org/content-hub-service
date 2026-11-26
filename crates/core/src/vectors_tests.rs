@@ -9,8 +9,10 @@ use crate::instance_state::{self, Actor};
 use crate::model::{InstanceStatus, TaskStatus, stored_enumerations};
 use crate::task_state;
 
+/// The committed vectors file.
 const VECTORS: &str = include_str!("../../../vectors.json");
 
+/// The parts of the file these tests read.
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Vectors {
@@ -27,10 +29,12 @@ struct Vectors {
     limits: Vec<serde_json::Value>,
 }
 
+/// Parse the committed file.
 fn vectors() -> Vectors {
     serde_json::from_str(VECTORS).expect("vectors.json parses")
 }
 
+/// The actor a vector names.
 fn actor(s: &str) -> Actor {
     match s {
         "operator" => Actor::Operator,
@@ -40,6 +44,7 @@ fn actor(s: &str) -> Actor {
     }
 }
 
+/// Enumerations match value for value and in order.
 #[test]
 fn enumerations_match_value_for_value_and_in_order() {
     let v = vectors();
@@ -51,6 +56,7 @@ fn enumerations_match_value_for_value_and_in_order() {
     assert_eq!(ours, v.enumerations);
 }
 
+/// The task state machine is exactly the vector table.
 #[test]
 fn the_task_state_machine_is_exactly_the_vector_table() {
     let v = vectors();
@@ -68,6 +74,7 @@ fn the_task_state_machine_is_exactly_the_vector_table() {
     assert_eq!(ours, theirs);
 }
 
+/// The instance state machine is exactly the vector table.
 #[test]
 fn the_instance_state_machine_is_exactly_the_vector_table() {
     let v = vectors();
@@ -84,6 +91,7 @@ fn the_instance_state_machine_is_exactly_the_vector_table() {
     }
 }
 
+/// The committed vectors are what the implementation generates.
 #[test]
 fn the_committed_vectors_are_what_the_implementation_generates() {
     let v = vectors();

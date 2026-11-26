@@ -8,42 +8,70 @@ use sqlx::PgConnection;
 use super::{Page, PageRequest};
 use crate::Result;
 
+/// One operator task.
 #[derive(Debug, Clone, Serialize, utoipa::ToSchema)]
 pub struct Task {
+    /// The task's id.
     pub id: i64,
+    /// The roadmap item it belongs to.
     pub roadmap_item_id: Option<i64>,
+    /// The task's stable key.
     pub key: String,
+    /// What kind of task it is.
     pub task_type: String,
+    /// The title.
     pub title: String,
+    /// The description.
     pub description: String,
+    /// Where it stands.
     pub status: String,
+    /// Why it is blocked (set only while blocked).
     pub blocked_reason: Option<String>,
+    /// When it is scheduled.
     pub scheduled_at: Option<DateTime<Utc>>,
+    /// When it was finished (set only when done).
     pub completed_at: Option<DateTime<Utc>>,
+    /// Days between reviews of a recurring task.
     pub review_interval_days: Option<i32>,
+    /// When the next review is due.
     pub next_review_at: Option<DateTime<Utc>>,
+    /// The subject of the person it is assigned to.
     pub assignee_subject: Option<String>,
+    /// Whether it waits for the legal entity to exist.
     pub entity_gated: bool,
+    /// When it was created.
     pub created_at: DateTime<Utc>,
+    /// When it last changed.
     pub updated_at: DateTime<Utc>,
 }
 
 /// Fields set on create or update (not the status: see `set_status`).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TaskFields {
+    /// The roadmap item.
     pub roadmap_item_id: Option<i64>,
+    /// The stable key.
     pub key: String,
+    /// The kind of task.
     pub task_type: String,
+    /// The title.
     pub title: String,
+    /// The description.
     pub description: String,
+    /// When it is scheduled.
     pub scheduled_at: Option<DateTime<Utc>>,
+    /// Days between reviews.
     pub review_interval_days: Option<i32>,
+    /// When the next review is due.
     pub next_review_at: Option<DateTime<Utc>>,
+    /// The assignee's subject.
     pub assignee_subject: Option<String>,
+    /// Whether it waits for the legal entity.
     pub entity_gated: bool,
 }
 
 impl From<&Task> for TaskFields {
+    /// The editable fields of a task, taken from the stored one so a patch starts from the current state.
     fn from(t: &Task) -> Self {
         TaskFields {
             roadmap_item_id: t.roadmap_item_id,
@@ -60,35 +88,54 @@ impl From<&Task> for TaskFields {
     }
 }
 
+/// A platform a task is about, with an optional target.
 #[derive(Debug, Clone, Serialize, utoipa::ToSchema)]
 pub struct TaskPlatform {
+    /// The row's id.
     pub id: i64,
+    /// The platform definition's id.
     pub platform_definition_id: i64,
+    /// The platform's code.
     pub platform_code: String,
+    /// The target, if the task names one.
     pub platform_target_id: Option<i64>,
 }
 
+/// A link from a task to a post, an instance or an outside page.
 #[derive(Debug, Clone, Serialize, utoipa::ToSchema)]
 pub struct TaskLink {
+    /// The link's id.
     pub id: i64,
+    /// What it links to.
     pub link_kind: String,
+    /// The post, for a post link.
     pub post_id: Option<i64>,
+    /// The instance, for an instance link.
     pub platform_instance_id: Option<i64>,
+    /// The address, for an outside link.
     pub url: Option<String>,
+    /// A short label.
     pub label: String,
+    /// When it was added.
     pub created_at: DateTime<Utc>,
 }
 
+/// A filter for the list of tasks.
 #[derive(Debug, Clone, Default)]
 pub struct TaskFilter {
+    /// Only this status.
     pub status: Option<String>,
+    /// Only this kind.
     pub task_type: Option<String>,
+    /// Only this item.
     pub roadmap_item_id: Option<i64>,
+    /// Only tasks that do or do not wait for the entity.
     pub entity_gated: Option<bool>,
     /// Tasks whose review is due at or before this time.
     pub review_due_before: Option<DateTime<Utc>>,
 }
 
+/// A page of tasks matching the filter.
 pub async fn list(conn: &mut PgConnection, f: &TaskFilter, page: PageRequest) -> Result<Page<Task>> {
     let rows = sqlx::query_as!(
         Task,
@@ -107,22 +154,31 @@ pub async fn list(conn: &mut PgConnection, f: &TaskFilter, page: PageRequest) ->
     )
     .fetch_all(conn)
     .await?;
+    // One more row was fetched than the page holds, to know whether a next page exists.
     Ok(page.page(rows, |r| r.id))
 }
 
+/// One task.
 pub async fn get(conn: &mut PgConnection, id: i64) -> Result<Option<Task>> {
+    // `None` when there is no such task.
     Ok(sqlx::query_as!(Task, "SELECT * FROM hub.tasks WHERE id = $1", id).fetch_optional(conn).await?)
 }
 
+/// One task, locked for the rest of the transaction.
 pub async fn get_for_update(conn: &mut PgConnection, id: i64) -> Result<Option<Task>> {
+    // The lock keeps a concurrent change from slipping between the read and the write.
     Ok(sqlx::query_as!(Task, "SELECT * FROM hub.tasks WHERE id = $1 FOR UPDATE", id).fetch_optional(conn).await?)
 }
 
+/// The id of the task with this key.
 pub async fn id_by_key(conn: &mut PgConnection, key: &str) -> Result<Option<i64>> {
+    // Keys are unique, so there is at most one.
     Ok(sqlx::query_scalar!("SELECT id FROM hub.tasks WHERE key = $1", key).fetch_optional(conn).await?)
 }
 
+/// Insert a task with a starting status.
 pub async fn insert(conn: &mut PgConnection, f: &TaskFields, status: &str) -> Result<Task> {
+    // A task created as done gets its completion time now (the database requires it).
     let completed: Option<DateTime<Utc>> = (status == "done").then(Utc::now);
     Ok(sqlx::query_as!(
         Task,
@@ -147,6 +203,7 @@ pub async fn insert(conn: &mut PgConnection, f: &TaskFields, status: &str) -> Re
     .await?)
 }
 
+/// Replace a task's fields (not its status).
 pub async fn update(conn: &mut PgConnection, id: i64, f: &TaskFields) -> Result<Task> {
     Ok(sqlx::query_as!(
         Task,
@@ -171,6 +228,7 @@ pub async fn update(conn: &mut PgConnection, id: i64, f: &TaskFields) -> Result<
 
 /// Upsert by key for the seed import; the status is set directly (an import is not a transition).
 pub async fn upsert(conn: &mut PgConnection, f: &TaskFields, status: &str) -> Result<Task> {
+    // The same for an import that sets a task to done.
     let completed: Option<DateTime<Utc>> = (status == "done").then(Utc::now);
     Ok(sqlx::query_as!(
         Task,
@@ -239,6 +297,7 @@ pub async fn all_dependencies(conn: &mut PgConnection) -> Result<Vec<(i64, i64)>
         .collect())
 }
 
+/// The ids of the tasks this one depends on.
 pub async fn dependencies(conn: &mut PgConnection, id: i64) -> Result<Vec<i64>> {
     Ok(sqlx::query_scalar!("SELECT depends_on_task_id FROM hub.task_dependencies WHERE task_id = $1 ORDER BY 1", id)
         .fetch_all(conn)
@@ -258,6 +317,7 @@ pub async fn set_dependencies(conn: &mut PgConnection, id: i64, deps: &[i64]) ->
     Ok(())
 }
 
+/// The platforms a task is about.
 pub async fn platforms(conn: &mut PgConnection, id: i64) -> Result<Vec<TaskPlatform>> {
     Ok(sqlx::query_as!(
         TaskPlatform,
@@ -286,6 +346,7 @@ pub async fn set_platforms(conn: &mut PgConnection, id: i64, pairs: &[(i64, Opti
     Ok(())
 }
 
+/// The links on a task.
 pub async fn links(conn: &mut PgConnection, id: i64) -> Result<Vec<TaskLink>> {
     Ok(sqlx::query_as!(
         TaskLink,
@@ -296,6 +357,7 @@ pub async fn links(conn: &mut PgConnection, id: i64) -> Result<Vec<TaskLink>> {
     .await?)
 }
 
+/// Add a link to a task; exactly the column that matches the kind is set.
 pub async fn add_link(
     conn: &mut PgConnection,
     task_id: i64,

@@ -6,11 +6,16 @@ use sqlx::PgConnection;
 
 use crate::Result;
 
+/// A person who has signed in to the admin interface.
 #[derive(Debug, Clone, Serialize, utoipa::ToSchema)]
 pub struct User {
+    /// The identity provider's subject.
     pub subject: String,
+    /// The name shown.
     pub display_name: String,
+    /// When they first signed in.
     pub first_seen_at: DateTime<Utc>,
+    /// When they last signed in.
     pub last_seen_at: DateTime<Utc>,
 }
 

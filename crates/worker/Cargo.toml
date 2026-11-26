@@ -1,4 +1,7 @@
+# The publishing worker: claims queued instances, sends each at most once, and records every attempt. It also serves
+# the metrics and health endpoints that the cluster probes and scrapes.
 [package]
+# The crate name that the other crates and the binaries use.
 name = "content-hub-worker"
 description = "The content hub's publishing worker: claims queued instances, sends them at most once, records every attempt."
 version.workspace = true
@@ -6,11 +9,14 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
+# Inherited: the crate is never published to crates.io.
 publish.workspace = true
 
+# Lints, version, edition and licence are inherited from the workspace manifest, so every crate is held to one set of rules.
 [lints]
 workspace = true
 
+# Runtime dependencies are versioned once, in the workspace manifest.
 [dependencies]
 content-hub-core = { workspace = true }
 content-hub-store = { workspace = true }
@@ -27,6 +33,8 @@ getrandom = { workspace = true }
 tracing = { workspace = true }
 thiserror = { workspace = true }
 
+# Test-only dependencies.
+# Test-only: the database harness, the API crate's test signing key, and tower to call routers directly.
 [dev-dependencies]
 tokio = { workspace = true, features = ["rt-multi-thread", "macros", "net", "time", "sync"] }
 content-hub-store = { workspace = true, features = ["testing"] }

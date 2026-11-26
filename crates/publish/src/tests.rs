@@ -27,14 +27,17 @@ struct Seen {
     raw: Vec<u8>,
 }
 
+/// The requests the mock server received, in order.
 type Log = Arc<Mutex<Vec<Seen>>>;
 
 /// A scripted reply: status, extra headers, body, and an optional delay after reading the request.
 type Scripted = (u16, Vec<(&'static str, String)>, String, Duration);
 
+/// A function from a request path to the reply the mock gives.
 #[derive(Clone)]
 struct Script(Arc<dyn Fn(&str) -> Scripted + Send + Sync>);
 
+/// Record the request, wait for any scripted delay and answer as scripted.
 async fn handle(
     State((log, script)): State<(Log, Script)>,
     uri: Uri,
@@ -70,14 +73,17 @@ async fn mock(script: impl Fn(&str) -> Scripted + Send + Sync + 'static) -> (Str
     (format!("http://{addr}"), log)
 }
 
+/// A reply with a status and a body.
 fn ok(status: u16, body: &str) -> Scripted {
     (status, vec![], body.to_owned(), Duration::ZERO)
 }
 
+/// A reply that takes three seconds, longer than the test client's timeout.
 fn slow() -> Scripted {
     (200, vec![], "{}".into(), Duration::from_secs(3))
 }
 
+/// A test client with a 600 ms timeout that may reach the local mock.
 fn http() -> Http {
     Http::unchecked_for_tests(Duration::from_millis(600))
 }
@@ -90,9 +96,12 @@ async fn closed_port() -> String {
     format!("http://{a}")
 }
 
+/// The idempotency key of every test send.
 const KEY: Uuid = Uuid::from_u128(0x0123_4567_89ab_cdef_0123_4567_89ab_cdef);
+/// The post id of every test send.
 const POST: Uuid = Uuid::from_u128(42);
 
+/// A send context for a kind, with fixed times a minute apart and a body that has a mention and a link.
 fn ctx<'a>(kind: Kind, base: &'a str, ext: Option<&'a str>, config: &'a Value, secret: Option<&'a str>) -> Context<'a> {
     Context {
         kind,
@@ -110,6 +119,7 @@ fn ctx<'a>(kind: Kind, base: &'a str, ext: Option<&'a str>, config: &'a Value, s
     }
 }
 
+/// Assert that a credential appears nowhere in a report: request, excerpt or outcome.
 fn no_secret_in(r: &Report, secret: &str) {
     let all = format!("{} {:?} {:?}", r.request, r.excerpt, r.sent);
     assert!(!all.contains(secret), "the credential leaked: {all}");
@@ -117,14 +127,18 @@ fn no_secret_in(r: &Report, secret: &str) {
 
 // ── Discord ──────────────────────────────────────────────────────────────────────────────────────────────
 
+/// What a Discord webhook answers with `wait=true`.
 const DISCORD_OK: &str = r#"{"id":"1300000000000000001","channel_id":"1200000000000000002","content":"x"}"#;
 
+/// Discord posts without mentions and records no token.
 #[tokio::test]
 async fn discord_posts_without_mentions_and_records_no_token() {
     let (base, log) = mock(|p| if p.contains("crosspost") { ok(200, "{}") } else { ok(200, DISCORD_OK) }).await;
+    // The webhook URL is the credential, so the test looks for its token part everywhere.
     let hook = format!("{base}/api/webhooks/123/SeCrEtToKeN_value-1");
     let cfg = json!({"guild_id": "1100000000000000003"});
     let mut c = ctx(Kind::Discord, &base, None, &cfg, Some(&hook));
+    // A crosspost bot token, to see that it is used and never stored.
     c.crosspost_secret = Some("BOT.TOKEN.VALUE");
     let r = send(&http(), &c).await;
     assert_eq!(
@@ -145,6 +159,7 @@ async fn discord_posts_without_mentions_and_records_no_token() {
     assert_eq!(r.request["url"], format!("{base}/api/webhooks/123/[redacted]?wait=true"));
 }
 
+/// Discord outcomes.
 #[tokio::test]
 async fn discord_outcomes() {
     let cfg = json!({});
@@ -194,24 +209,30 @@ async fn discord_outcomes() {
 
 // ── Telegram ─────────────────────────────────────────────────────────────────────────────────────────────
 
+/// A well-formed Telegram bot token (the documentation's example).
 const TG_TOKEN: &str = "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11";
 
+/// Telegram sends html and never records the token.
 #[tokio::test]
 async fn telegram_sends_html_and_never_records_the_token() {
     let (base, log) = mock(|_| {
         ok(200, r#"{"ok":true,"result":{"message_id":9,"chat":{"id":-1001,"type":"channel","username":"chan_name"}}}"#)
     })
     .await;
+    // A target configured without link previews.
     let cfg = json!({"disable_link_preview": true});
     let r = send(&http(), &ctx(Kind::Telegram, &base, Some("@chan_name"), &cfg, Some(TG_TOKEN))).await;
     assert_eq!(r.sent, Sent::Posted { url_or_external_id: "https://t.me/chan_name/9".into() });
     let seen = log.lock().expect("log").clone();
+    // The token is in the path the platform requires, and nowhere else.
     assert_eq!(seen[0].path, format!("/bot{TG_TOKEN}/sendMessage"));
+    // The payload is Telegram HTML.
     assert_eq!(seen[0].body["parse_mode"], "HTML");
     assert_eq!(seen[0].body["link_preview_options"], json!({"is_disabled": true}));
     no_secret_in(&r, "ABC-DEF1234ghIkl");
 }
 
+/// Telegram outcomes and scrubbed errors.
 #[tokio::test]
 async fn telegram_outcomes_and_scrubbed_errors() {
     let cfg = json!({});
@@ -229,6 +250,7 @@ async fn telegram_outcomes_and_scrubbed_errors() {
     let r = send(&http(), &ctx(Kind::Telegram, &base, Some("@chan_name"), &cfg, Some(TG_TOKEN))).await;
     assert!(matches!(r.sent, Sent::Refused { validation: false, .. }));
     no_secret_in(&r, "ABC-DEF1234ghIkl");
+    // A reply after the timeout: the post might have gone out, so it is unknown.
     let (base, _) = mock(|_| slow()).await;
     assert!(matches!(
         send(&http(), &ctx(Kind::Telegram, &base, Some("@chan_name"), &cfg, Some(TG_TOKEN))).await.sent,
@@ -237,11 +259,13 @@ async fn telegram_outcomes_and_scrubbed_errors() {
     let (base, log) = mock(|_| ok(200, "{}")).await;
     let r = send(&http(), &ctx(Kind::Telegram, &base, Some("@chan_name"), &cfg, Some("DATABASE-URL-VALUE"))).await;
     assert!(matches!(r.sent, Sent::Refused { .. }));
+    // The mock saw nothing: the bad credential never left the process.
     assert!(log.lock().expect("log").is_empty(), "a non-token credential is never put in a URL");
 }
 
 // ── Bluesky ──────────────────────────────────────────────────────────────────────────────────────────────
 
+/// A Bluesky mock: the session call succeeds with fixed tokens and the record call answers as scripted.
 fn bsky(record: Scripted) -> impl Fn(&str) -> Scripted + Send + Sync + 'static {
     move |p: &str| {
         if p.ends_with("createSession") {
@@ -252,6 +276,7 @@ fn bsky(record: Scripted) -> impl Fn(&str) -> Scripted + Send + Sync + 'static {
     }
 }
 
+/// Bluesky logs in then writes a record with facets under a fixed key.
 #[tokio::test]
 async fn bluesky_logs_in_then_writes_a_record_with_facets_under_a_fixed_key() {
     let (base, log) = mock(bsky(ok(200, r#"{"uri":"at://did:plc:abc/app.bsky.feed.post/KEY","cid":"bafy"}"#))).await;
@@ -274,6 +299,7 @@ async fn bluesky_logs_in_then_writes_a_record_with_facets_under_a_fixed_key() {
     no_secret_in(&r, "ACCESS.JWT.VALUE");
 }
 
+/// Bluesky failures before posting retry and after are unknown.
 #[tokio::test]
 async fn bluesky_failures_before_posting_retry_and_after_are_unknown() {
     let cfg_for = |b: &str| json!({"pds": b});
@@ -319,6 +345,7 @@ async fn bluesky_failures_before_posting_retry_and_after_are_unknown() {
 
 // ── Mastodon ─────────────────────────────────────────────────────────────────────────────────────────────
 
+/// Mastodon sends the idempotency key and repeats only inside its window.
 #[tokio::test]
 async fn mastodon_sends_the_idempotency_key_and_repeats_only_inside_its_window() {
     let (base, log) =
@@ -355,6 +382,7 @@ async fn mastodon_sends_the_idempotency_key_and_repeats_only_inside_its_window()
     ));
 }
 
+/// Mastodon instance limits.
 #[tokio::test]
 async fn mastodon_instance_limits() {
     let (base, log) = mock(|_| {
@@ -368,6 +396,7 @@ async fn mastodon_instance_limits() {
 
 // ── X ────────────────────────────────────────────────────────────────────────────────────────────────────
 
+/// The documented oauth1 signature.
 #[test]
 fn the_documented_oauth1_signature() {
     let params = [
@@ -386,6 +415,7 @@ fn the_documented_oauth1_signature() {
     assert_eq!(oauth1_signature(&key, &base), "hCtSmYh+iHYCEqBWrE7C7hYmtUk=");
 }
 
+/// X signs with oauth1.
 #[tokio::test]
 async fn x_signs_with_oauth1() {
     let (base, log) = mock(|_| ok(201, r#"{"data":{"id":"1445880548472328192","text":"x"}}"#)).await;
@@ -405,12 +435,14 @@ async fn x_signs_with_oauth1() {
 
 // ── the feed and dry runs ────────────────────────────────────────────────────────────────────────────────
 
+/// The feed needs no call.
 #[tokio::test]
 async fn the_feed_needs_no_call() {
     let r = send(&http(), &ctx(Kind::Feed, "unused", None, &json!({}), None)).await;
     assert_eq!(r.sent, Sent::Posted { url_or_external_id: format!("urn:uuid:{POST}") });
 }
 
+/// Dry runs describe the request without credentials.
 #[test]
 fn dry_runs_describe_the_request_without_credentials() {
     let cfg = json!({});
@@ -431,14 +463,17 @@ fn dry_runs_describe_the_request_without_credentials() {
 
 // ── the Walrus publisher (BlobStore) ─────────────────────────────────────────────────────────────────────
 
+/// Tests of the Walrus publisher client.
 mod publisher {
     use super::*;
     use crate::blob::{BlobError, BlobStore, Publisher, StoredBlob};
     use base64::Engine;
     use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 
+    /// A syntactically valid blob id.
     const BLOB: &str = "Qc9aP0V6x3mYk2w1TnqL8sRZb4dEoFhJiUyXvCgA7MM";
 
+    /// The publisher's answer for a newly stored blob.
     fn created() -> String {
         format!(
             r#"{{"newlyCreated":{{"blobObject":{{"id":"0x{}","blobId":"{BLOB}","size":5,"storage":{{"startEpoch":5,"endEpoch":35}}}}}}}}"#,
@@ -446,6 +481,7 @@ mod publisher {
         )
     }
 
+    /// A blob is sent raw with a token bound to its epochs and size.
     #[tokio::test]
     async fn a_blob_is_sent_raw_with_a_token_bound_to_its_epochs_and_size() {
         let (base, log) = mock(|_| ok(200, &created())).await;
@@ -477,6 +513,7 @@ mod publisher {
         assert_ne!(again, auth);
     }
 
+    /// No secret means no token and refusals are explained.
     #[tokio::test]
     async fn no_secret_means_no_token_and_refusals_are_explained() {
         let (base, log) = mock(|_| ok(200, &created())).await;
@@ -499,6 +536,7 @@ mod publisher {
         ));
     }
 
+    /// The internal client calls only its own host.
     #[tokio::test]
     async fn the_internal_client_calls_only_its_own_host() {
         // The production constructor builds a client that refuses every other host before connecting.

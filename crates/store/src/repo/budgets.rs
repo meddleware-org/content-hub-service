@@ -9,24 +9,37 @@ use sqlx::PgConnection;
 
 use crate::Result;
 
+/// One spend cap: a monthly limit, and optionally a daily post limit, for the whole hub, one platform or one target.
 #[derive(Debug, Clone, Serialize, utoipa::ToSchema)]
 pub struct SpendCap {
+    /// The cap's id.
     pub id: i64,
+    /// What the cap covers: `total`, `platform` or `target`.
     pub scope: String,
+    /// The platform, for a platform cap.
     pub platform_definition_id: Option<i64>,
+    /// The target, for a target cap.
     pub platform_target_id: Option<i64>,
+    /// The most that may be spent in a month, in millionths of a US dollar.
     pub monthly_limit_usd_micros: i64,
+    /// The most posts per day, if limited.
     pub daily_post_limit: Option<i32>,
+    /// The subject of the person who last changed it.
     pub updated_by: String,
+    /// When it was last changed.
     pub updated_at: DateTime<Utc>,
 }
 
+/// What one platform has used this month.
 #[derive(Debug, Clone, Serialize, utoipa::ToSchema)]
 pub struct Usage {
+    /// The platform.
     pub platform_definition_id: i64,
+    /// The amount reserved or settled this month, in millionths of a US dollar.
     pub used_usd_micros: i64,
 }
 
+/// Every cap.
 pub async fn caps(conn: &mut PgConnection) -> Result<Vec<SpendCap>> {
     Ok(sqlx::query_as!(
         SpendCap,

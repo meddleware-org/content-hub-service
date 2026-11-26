@@ -19,6 +19,7 @@ use sqlx::{AssertSqlSafe, Connection, Executor};
 
 use crate::config::{Access, DatabaseSettings};
 
+/// `bytes` random bytes as lower-case hex.
 fn random_hex(bytes: usize) -> String {
     let mut b = vec![0u8; bytes];
     getrandom::fill(&mut b).expect("the OS random source is available");
@@ -50,25 +51,35 @@ pub fn admin_settings() -> Option<DatabaseSettings> {
 /// to the first migration (a server provisioned without that step).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DataSchema {
+    /// The data schema exists before the migrations run, as the database tier provisions it.
     Provisioned,
+    /// The first migration creates the data schema.
     LeftToMigration,
 }
 
 /// An isolated, provisioned database.
 pub struct TestDb {
+    /// The superuser settings used to create and drop the test database.
     admin: DatabaseSettings,
+    /// The superuser's password.
     admin_password: String,
+    /// The test database's name.
     pub name: String,
+    /// The owner role, which runs the migrations.
     pub owner: DatabaseSettings,
+    /// The writer role, which the admin, worker and seed processes use.
     pub writer: DatabaseSettings,
+    /// The read-only role, which the public process uses.
     pub readonly: DatabaseSettings,
 }
 
+/// A superuser connection to the named database.
 async fn admin_conn(admin: &DatabaseSettings, password: &str, db: &str) -> PgConnection {
     let s = admin.with_credentials(admin.user(), password, db);
     PgConnection::connect_with(&s.connect_options().expect("admin options")).await.expect("connect as the test admin")
 }
 
+/// Run a statement, panicking with the statement on failure (a test helper).
 async fn exec(c: &mut PgConnection, sql: String) {
     c.execute(AssertSqlSafe(sql.clone())).await.unwrap_or_else(|e| panic!("{e}\n{sql}"));
 }
@@ -84,6 +95,7 @@ impl TestDb {
         Some(Self::create_with(admin_settings()?, schema).await)
     }
 
+    /// Create the database and its three roles on `admin`'s server.
     async fn create_with(admin: DatabaseSettings, schema: DataSchema) -> TestDb {
         // The admin password lives only inside the URL; read it back once.
         let admin_password = url::Url::parse(admin.url_unredacted())
@@ -174,6 +186,7 @@ impl TestDb {
     }
 }
 
+/// Decode `%XX` escapes in a URL component.
 fn percent_decode(s: &str) -> String {
     let b = s.as_bytes();
     let mut out = Vec::with_capacity(b.len());
@@ -209,6 +222,7 @@ async fn drop_database(admin: &DatabaseSettings, password: &str, name: &str) {
 }
 
 impl Drop for TestDb {
+    /// Drop the test database and its roles when the value goes out of scope.
     fn drop(&mut self) {
         let (admin, password, name) = (self.admin.clone(), self.admin_password.clone(), self.name.clone());
         // A separate thread and runtime: this can run while the test's own runtime is shutting down.

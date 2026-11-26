@@ -1,4 +1,7 @@
+# The store: the PostgreSQL schema, its migrations and every SQL statement the hub runs. Other crates reach the
+# database only through this crate's repository functions.
 [package]
+# The crate name that the other crates and the binaries use.
 name = "content-hub-store"
 description = "PostgreSQL schema, migrations and every SQL statement of the content hub."
 version.workspace = true
@@ -6,11 +9,14 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
+# Inherited: the crate is never published to crates.io.
 publish.workspace = true
 
+# Lints, version, edition and licence are inherited from the workspace manifest, so every crate is held to one set of rules.
 [lints]
 workspace = true
 
+# Runtime dependencies are versioned once, in the workspace manifest.
 [dependencies]
 content-hub-core = { workspace = true }
 sqlx = { workspace = true }
@@ -30,5 +36,6 @@ base64 = { workspace = true }
 # Adds no dependency; never enabled in a shipped build.
 testing = []
 
+# Test-only dependencies.
 [dev-dependencies]
 tokio = { workspace = true, features = ["rt-multi-thread", "macros", "time", "sync"] }

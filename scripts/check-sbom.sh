@@ -10,11 +10,14 @@
 # that misses one, lists it at another version, or lists nothing stops the release.
 set -euo pipefail
 
+# The SBOM file, then one or more workspace packages whose binaries it describes.
 sbom="${1:?usage: check-sbom.sh <sbom.json> <package> [<package> ...]}"
 shift
 [ "$#" -gt 0 ] || { echo "usage: check-sbom.sh <sbom.json> <package> [<package> ...]" >&2; exit 2; }
+# The package names as a JSON array, for the `jq` filter below.
 roots="$(printf '%s\n' "$@" | jq -R . | jq -sc .)"
 
+# A saved copy of the metadata can stand in for running cargo, which the script's own tests use.
 if [ -n "${CARGO_METADATA:-}" ]; then
   metadata="$(cat "$CARGO_METADATA")"
 else
@@ -31,6 +34,7 @@ expected="$(jq -r --argjson roots "$roots" '
   | map($names[.]) | .[]
 ' <<< "$metadata" | sort -u)"
 
+# The crates the SBOM claims, as name@version, from either supported format.
 listed="$(jq -r '
   if .bomFormat == "CycloneDX" then
     [.metadata.component // empty, (.. | objects | select(has("components")) | .components[])]

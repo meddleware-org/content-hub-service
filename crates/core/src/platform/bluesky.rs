@@ -18,6 +18,7 @@ use super::{Reply, by_status, reason, seconds};
 use crate::delivery::Sent;
 use crate::text::markup::scan_url;
 
+/// The base32-sortable alphabet a TID is written in.
 const B32: &[u8; 32] = b"234567abcdefghijklmnopqrstuvwxyz";
 
 /// A TID: 64 bits, top bit 0, 53 bits of microseconds since the epoch, 10 bits of clock id; base32-sortable,
@@ -52,14 +53,17 @@ pub fn link_facets(text: &str) -> Vec<Value> {
     out
 }
 
+/// The URL that creates a session on the account's PDS.
 pub fn session_url(pds: &str) -> String {
     format!("{}/xrpc/com.atproto.server.createSession", pds.trim_end_matches('/'))
 }
 
+/// The URL that creates a record (a post) on the account's PDS.
 pub fn create_record_url(pds: &str) -> String {
     format!("{}/xrpc/com.atproto.repo.createRecord", pds.trim_end_matches('/'))
 }
 
+/// The `createSession` body: the account handle or email and an app password.
 pub fn session_body(identifier: &str, app_password: &str) -> Value {
     json!({ "identifier": identifier, "password": app_password })
 }
@@ -85,6 +89,7 @@ pub fn post_url(repo: &str, rkey: &str) -> String {
     format!("https://bsky.app/profile/{repo}/post/{rkey}")
 }
 
+/// The platform's own explanation from an error body: `error: message`, or whichever of the two is present.
 fn said(v: &Option<Value>) -> Option<String> {
     let v = v.as_ref()?;
     let e = v.get("error").and_then(Value::as_str);
@@ -99,7 +104,9 @@ fn said(v: &Option<Value>) -> Option<String> {
 /// A session: the account's DID and the access token.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Session {
+    /// The account's DID.
     pub did: String,
+    /// The access token to send with the next call.
     pub access_jwt: String,
 }
 
@@ -146,10 +153,12 @@ pub fn classify_record(r: &Reply, repo: &str, rkey: &str) -> Sent {
     Sent::Posted { url_or_external_id: post_url(repo, rkey_back.as_deref().unwrap_or(rkey)) }
 }
 
+/// Unit tests for this module.
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    /// A reply with no headers.
     fn reply(status: u16, body: &str) -> Reply {
         Reply { status, headers: vec![], body: body.into() }
     }
@@ -157,11 +166,13 @@ mod tests {
     /// atproto.com/specs/tid: 13 characters of `234567abcdefghijklmnopqrstuvwxyz`, the first one of `234567abcdefghij`.
     #[test]
     fn tids() {
+        // The smallest TID is thirteen of the first character.
         assert_eq!(tid(0, 0), "2222222222222");
         let t = tid(1_761_730_000_000_000, 0x3ff);
         assert_eq!(t.len(), 13);
         assert!("234567abcdefghij".contains(t.chars().next().expect("first")));
         // Sortable: a later time sorts later.
+        // The clock part dominates the ordering, so a later microsecond sorts later whatever the clock id.
         assert!(tid(1_761_730_000_000_001, 0) > tid(1_761_730_000_000_000, 1023));
         // Deterministic per instance.
         let k = [7u8; 16];
@@ -169,20 +180,24 @@ mod tests {
         assert_ne!(rkey(1_761_730_000_000_000, &k), rkey(1_761_730_000_000_000, &[8u8; 16]));
     }
 
+    /// Facets use utf8 byte offsets.
     #[test]
     fn facets_use_utf8_byte_offsets() {
+        // Multi-byte characters before the link make a character offset differ from the byte offset the platform needs; the trailing full stop and the closing bracket are not part of the links.
         let text = "Café ☕ news: https://example.org/a. More (https://example.org/b)";
         let f = link_facets(text);
         assert_eq!(f.len(), 2);
         let s = f[0]["index"]["byteStart"].as_u64().expect("start") as usize;
         let e = f[0]["index"]["byteEnd"].as_u64().expect("end") as usize;
         assert_eq!(&text[s..e], "https://example.org/a");
+        // The facet starts at the byte, not the character, offset.
         assert_eq!(s, "Café ☕ news: ".len());
         assert_eq!(f[1]["features"][0]["uri"], "https://example.org/b");
         assert_eq!(f[0]["features"][0]["$type"], "app.bsky.richtext.facet#link");
         assert!(link_facets("no links, just httpish words").is_empty());
     }
 
+    /// Bodies.
     #[test]
     fn bodies() {
         let b = record_body(
@@ -190,6 +205,7 @@ mod tests {
             "3abc",
             "Hi https://x.org",
             "2026-10-29T12:00:00.000Z",
+            // An empty tag is dropped and at most three are kept.
             &json!({"langs": ["en", "", "de", "fr", "es"]}),
         );
         assert_eq!(b["collection"], "app.bsky.feed.post");
@@ -197,6 +213,7 @@ mod tests {
         assert_eq!(b["record"]["$type"], "app.bsky.feed.post");
         assert_eq!(b["record"]["langs"], json!(["en", "de", "fr"]));
         assert_eq!(b["record"]["facets"][0]["index"], json!({"byteStart": 3, "byteEnd": 16}));
+        // No link, no facets key.
         assert!(record_body("did:plc:abc", "k", "plain", "t", &json!({}))["record"].get("facets").is_none());
     }
 
@@ -208,12 +225,15 @@ mod tests {
             r#"{"did":"did:plc:abc","handle":"a.bsky.social","accessJwt":"jwt","refreshJwt":"r"}"#,
         ));
         assert_eq!(s, Ok(Session { did: "did:plc:abc".into(), access_jwt: "jwt".into() }));
+        // A wrong password is a refusal, not a retry: trying again would not help.
         let bad = classify_session(&reply(
             401,
             r#"{"error":"AuthenticationRequired","message":"Invalid identifier or password"}"#,
         ));
         assert!(matches!(bad, Err(Sent::Refused { validation: false, .. })));
+        // Nothing was posted yet, so a server error is safe to retry.
         assert!(matches!(classify_session(&reply(503, "")), Err(Sent::Retry { .. })));
+        // A rate limit is a retry with the platform's wait hint.
         let limited = Reply { status: 429, headers: vec![("retry-after".into(), "120".into())], body: "{}".into() };
         assert!(matches!(classify_session(&limited), Err(Sent::Retry { rate_limited: true, after: Some(_), .. })));
 
@@ -222,13 +242,16 @@ mod tests {
             classify_record(&ok, "did:plc:abc", "3lkey"),
             Sent::Posted { url_or_external_id: "https://bsky.app/profile/did:plc:abc/post/3lkey".into() }
         );
+        // A record the platform judges invalid is a refusal of the content itself.
         let invalid = reply(
             400,
             r#"{"error":"InvalidRequest","message":"Invalid app.bsky.feed.post record: Record/text must not be longer than 300 graphemes"}"#,
         );
         assert!(matches!(classify_record(&invalid, "d", "k"), Sent::Refused { validation: true, .. }));
+        // An expired token is retried: the next attempt logs in again.
         let expired = reply(400, r#"{"error":"ExpiredToken","message":"Token has expired"}"#);
         assert!(matches!(classify_record(&expired, "d", "k"), Sent::Retry { .. }));
+        // After the record call a server error might have posted, so it is unknown and never retried automatically.
         assert!(matches!(classify_record(&reply(500, "{}"), "d", "k"), Sent::Unknown { .. }));
     }
 }

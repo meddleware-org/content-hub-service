@@ -46,14 +46,19 @@ pub enum Actor {
 }
 
 impl Actor {
+    /// Every actor, for the tests that walk the whole table.
     pub const ALL: &'static [Actor] = &[Actor::Operator, Actor::Worker, Actor::Janitor];
 }
 
+/// The refusal of a move the table does not allow.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
 #[error("{actor:?} cannot move an instance from {from} to {to}")]
 pub struct InstanceTransitionError {
+    /// Who tried to make the move.
     pub actor: Actor,
+    /// The status the instance was in.
     pub from: InstanceStatus,
+    /// The status it was asked to move to.
     pub to: InstanceStatus,
 }
 
@@ -83,6 +88,7 @@ pub fn check(actor: Actor, from: InstanceStatus, to: InstanceStatus) -> Result<(
     if allowed(actor, from, to) { Ok(()) } else { Err(InstanceTransitionError { actor, from, to }) }
 }
 
+/// Unit tests for this module.
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -114,6 +120,7 @@ mod tests {
         (Cancelled, Planned, Operator),
     ];
 
+    /// Every triple matches the documented table.
     #[test]
     fn every_triple_matches_the_documented_table() {
         for &actor in Actor::ALL {
@@ -126,6 +133,7 @@ mod tests {
         }
     }
 
+    /// Only the worker enters sending.
     #[test]
     fn only_the_worker_enters_sending() {
         for &actor in Actor::ALL {
@@ -135,6 +143,7 @@ mod tests {
         }
     }
 
+    /// Unknown is left only by an operator resolution.
     #[test]
     fn unknown_is_left_only_by_an_operator_resolution() {
         for &actor in Actor::ALL {
@@ -149,6 +158,7 @@ mod tests {
         }
     }
 
+    /// Posted is terminal.
     #[test]
     fn posted_is_terminal() {
         for &actor in Actor::ALL {
@@ -158,6 +168,7 @@ mod tests {
         }
     }
 
+    /// The janitor has exactly one move.
     #[test]
     fn the_janitor_has_exactly_one_move() {
         let moves: Vec<_> = InstanceStatus::ALL
@@ -168,6 +179,7 @@ mod tests {
         assert_eq!(moves, vec![(Sending, Unknown)]);
     }
 
+    /// Check reports the refused triple.
     #[test]
     fn check_reports_the_refused_triple() {
         assert_eq!(

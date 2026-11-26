@@ -8,45 +8,75 @@ use uuid::Uuid;
 use super::{Page, PageRequest};
 use crate::Result;
 
+/// One canonical post.
 #[derive(Debug, Clone, Serialize, utoipa::ToSchema)]
 pub struct Post {
+    /// The post's id.
     pub id: i64,
+    /// The id a public feed shows.
     pub public_id: Uuid,
+    /// The title.
     pub title: String,
+    /// The body, in the canonical Markdown subset.
     pub body_markdown: String,
+    /// Where the post stands.
     pub status: String,
+    /// Free-form tags.
     pub tags: Vec<String>,
+    /// Categories.
     pub categories: Vec<String>,
+    /// The roadmap item it belongs to.
     pub roadmap_item_id: Option<i64>,
+    /// The task it belongs to.
     pub task_id: Option<i64>,
+    /// The revision number; it rises with every change.
     pub revision: i32,
+    /// The subject of the person who created it.
     pub created_by: String,
+    /// When it was created.
     pub created_at: DateTime<Utc>,
+    /// When it last changed.
     pub updated_at: DateTime<Utc>,
 }
 
+/// One saved revision of a post.
 #[derive(Debug, Clone, Serialize, utoipa::ToSchema)]
 pub struct PostRevision {
+    /// The revision's id.
     pub id: i64,
+    /// The revision number.
     pub revision: i32,
+    /// The title at that revision.
     pub title: String,
+    /// The body at that revision.
     pub body_markdown: String,
+    /// Who saved it.
     pub created_by: String,
+    /// When it was saved.
     pub created_at: DateTime<Utc>,
 }
 
+/// The writable fields of a post.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PostFields {
+    /// The title.
     pub title: String,
+    /// The body.
     pub body_markdown: String,
+    /// Where the post stands.
     pub status: String,
+    /// Tags.
     pub tags: Vec<String>,
+    /// Categories.
     pub categories: Vec<String>,
+    /// The roadmap item.
     pub roadmap_item_id: Option<i64>,
+    /// The task.
     pub task_id: Option<i64>,
 }
 
 impl From<&Post> for PostFields {
+    /// The editable fields of a post, taken from the stored one so a patch starts from the current state.
     fn from(p: &Post) -> Self {
         PostFields {
             title: p.title.clone(),
@@ -60,13 +90,18 @@ impl From<&Post> for PostFields {
     }
 }
 
+/// A filter for the list of posts.
 #[derive(Debug, Clone, Default)]
 pub struct PostFilter {
+    /// Only this status.
     pub status: Option<String>,
+    /// Only this roadmap item.
     pub roadmap_item_id: Option<i64>,
+    /// Only this task.
     pub task_id: Option<i64>,
 }
 
+/// A page of posts matching the filter.
 pub async fn list(conn: &mut PgConnection, f: &PostFilter, page: PageRequest) -> Result<Page<Post>> {
     let rows = sqlx::query_as!(
         Post,
@@ -85,14 +120,17 @@ pub async fn list(conn: &mut PgConnection, f: &PostFilter, page: PageRequest) ->
     Ok(page.page(rows, |r| r.id))
 }
 
+/// One post.
 pub async fn get(conn: &mut PgConnection, id: i64) -> Result<Option<Post>> {
     Ok(sqlx::query_as!(Post, "SELECT * FROM hub.posts WHERE id = $1", id).fetch_optional(conn).await?)
 }
 
+/// One post, locked for the rest of the transaction.
 pub async fn get_for_update(conn: &mut PgConnection, id: i64) -> Result<Option<Post>> {
     Ok(sqlx::query_as!(Post, "SELECT * FROM hub.posts WHERE id = $1 FOR UPDATE", id).fetch_optional(conn).await?)
 }
 
+/// The saved revisions of a post, newest first.
 pub async fn revisions(conn: &mut PgConnection, id: i64) -> Result<Vec<PostRevision>> {
     Ok(sqlx::query_as!(
         PostRevision,
@@ -124,6 +162,7 @@ pub async fn insert(conn: &mut PgConnection, f: &PostFields, created_by: &str) -
     Ok(post)
 }
 
+/// Save the post's current title and body as a revision.
 async fn add_revision(conn: &mut PgConnection, p: &Post, by: &str) -> Result<()> {
     sqlx::query!(
         "INSERT INTO hub.post_revisions (post_id, revision, title, body_markdown, created_by) VALUES ($1, $2, $3, $4, $5)",

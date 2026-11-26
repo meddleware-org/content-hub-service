@@ -13,31 +13,57 @@ use crate::Result;
 /// A due instance with its target and platform, locked for the claiming transaction.
 #[derive(Debug, Clone)]
 pub struct Claim {
+    /// The instance's id.
     pub id: i64,
+    /// The post it carries.
     pub post_id: i64,
+    /// The post's public id.
     pub post_public_id: Uuid,
+    /// How many sends this claim makes (this one included).
     pub attempt_count: i32,
+    /// The key that makes a retried send safe where the platform honours it.
     pub idempotency_key: Uuid,
+    /// What the send is expected to cost, in millionths of a US dollar.
     pub cost_estimate_usd_micros: i64,
+    /// The title as validated when the instance was queued.
     pub payload_title: String,
+    /// The body as validated when the instance was queued.
     pub payload_body: String,
+    /// The SHA-256 of the payload.
     pub payload_sha256: String,
+    /// The target's id.
     pub target_id: i64,
+    /// The target's name.
     pub target_name: String,
+    /// The target's reference on the platform (a channel, a handle).
     pub target_external_ref: Option<String>,
+    /// The target's own configuration.
     pub target_config: Value,
+    /// The name of the environment variable that holds the target's credential.
     pub target_secret_ref: Option<String>,
+    /// Whether the target is a sandbox.
     pub target_is_sandbox: bool,
+    /// Whether the target is switched on.
     pub target_enabled: bool,
+    /// Whether real sends to the target are allowed.
     pub target_live: bool,
+    /// The platform definition's id.
     pub platform_definition_id: i64,
+    /// The platform's code.
     pub platform_code: String,
+    /// Whether the platform is switched on.
     pub platform_enabled: bool,
+    /// How a post reaches the platform.
     pub posting_mode: String,
+    /// The platform's base URL.
     pub base_url: Option<String>,
+    /// How the platform counts characters.
     pub counting_method: Option<String>,
+    /// The main length limit.
     pub primary_limit: Option<i32>,
+    /// The further limits.
     pub secondary_limits: Value,
+    /// The markup the platform renders.
     pub markup: String,
 }
 
@@ -124,13 +150,21 @@ pub async fn first_attempt_at(conn: &mut PgConnection, id: i64) -> Result<Option
 /// The record of one finished send.
 #[derive(Debug, Clone)]
 pub struct Finish<'a> {
+    /// The status the instance moves to.
     pub to: &'a str,
+    /// The attempt's outcome.
     pub outcome: &'a str,
+    /// The platform's URL or id for the post, when accepted.
     pub url_or_external_id: Option<&'a str>,
+    /// When to try again, for a retry.
     pub next_attempt_at: Option<DateTime<Utc>>,
+    /// The reason to store on the instance.
     pub last_error: Option<&'a str>,
+    /// The HTTP status, if there was an answer.
     pub http_status: Option<i32>,
+    /// The start of the answer, with credentials removed.
     pub response_excerpt: Option<&'a str>,
+    /// The request as sent, with credentials removed.
     pub request_redacted: &'a Value,
 }
 

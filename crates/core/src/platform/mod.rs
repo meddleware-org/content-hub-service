@@ -22,10 +22,15 @@ use serde_json::Value;
 use crate::delivery::{Sent, clip};
 use crate::model::PostingMode;
 
+/// Bluesky (AT Protocol).
 pub mod bluesky;
+/// Discord webhooks.
 pub mod discord;
+/// Mastodon.
 pub mod mastodon;
+/// Telegram channels.
 pub mod telegram;
+/// X.
 pub mod x;
 
 /// The publishers that exist. Platform definitions are generic data; these codes are their stable identifiers.
@@ -33,10 +38,15 @@ pub mod x;
 pub enum Kind {
     /// The hub's own feeds: publishing makes the post appear in them (no external call).
     Feed,
+    /// Posting to a Discord channel through a webhook.
     Discord,
+    /// Posting to a Telegram channel through the bot API.
     Telegram,
+    /// Posting to a Bluesky account through the AT Protocol.
     Bluesky,
+    /// Posting to a Mastodon account through its API.
     Mastodon,
+    /// Posting to an X account through the API.
     X,
 }
 
@@ -63,6 +73,7 @@ impl Kind {
 /// A platform's HTTP reply, reduced to what classification needs.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Reply {
+    /// The HTTP status.
     pub status: u16,
     /// Lower-cased names.
     pub headers: Vec<(String, String)>,
@@ -71,14 +82,17 @@ pub struct Reply {
 }
 
 impl Reply {
+    /// The value of a header, matched without regard to case.
     pub fn header(&self, name: &str) -> Option<&str> {
         self.headers.iter().find(|(k, _)| k.eq_ignore_ascii_case(name)).map(|(_, v)| v.as_str())
     }
 
+    /// The body parsed as JSON, or `None` if it is not JSON.
     pub fn json(&self) -> Option<Value> {
         serde_json::from_str(&self.body).ok()
     }
 
+    /// Whether the status is a 2xx.
     pub const fn is_success(&self) -> bool {
         self.status >= 200 && self.status < 300
     }
@@ -146,10 +160,12 @@ pub(crate) fn reason(r: &Reply, said: Option<String>) -> String {
     }
 }
 
+/// Unit tests for this module.
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    /// Kinds.
     #[test]
     fn kinds() {
         use PostingMode::{Api, Feed, Manual, Webhook};
@@ -162,6 +178,7 @@ mod tests {
         assert!(!Kind::Feed.needs_secret() && Kind::Discord.needs_secret());
     }
 
+    /// Excerpts never carry the secret.
     #[test]
     fn excerpts_never_carry_the_secret() {
         let token = "123456789:AAH-secretpart_abcdefghijklmnopqrstu";
@@ -177,6 +194,7 @@ mod tests {
         assert_eq!(s, Sent::Refused { reason: "Unauthorized [redacted]".into(), validation: false });
     }
 
+    /// Seconds parse.
     #[test]
     fn seconds_parse() {
         assert_eq!(seconds("2"), Some(Duration::from_secs(2)));

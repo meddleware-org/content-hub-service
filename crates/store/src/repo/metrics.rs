@@ -5,31 +5,45 @@ use sqlx::PgConnection;
 
 use crate::Result;
 
+/// How many rows have one status.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StatusCount {
+    /// The status.
     pub status: String,
+    /// The number of rows.
     pub n: i64,
 }
 
+/// How many send attempts had one outcome on one platform.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AttemptCount {
+    /// The platform's code.
     pub platform: String,
+    /// The outcome.
     pub outcome: String,
+    /// The number of attempts.
     pub n: i64,
 }
 
+/// What one platform has used this month.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PlatformSpend {
+    /// The platform definition's id.
     pub platform_definition_id: i64,
+    /// The platform's code.
     pub platform: String,
+    /// The amount reserved or settled, in millionths of a US dollar.
     pub used_usd_micros: i64,
 }
 
 /// When a network's latest snapshot was generated and until when its Walrus storage is estimated to last.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SnapshotStat {
+    /// The network.
     pub network: String,
+    /// When the snapshot was generated.
     pub generated_at: chrono::DateTime<chrono::Utc>,
+    /// When its storage is estimated to run out, if it is stored.
     pub expires_at: Option<chrono::DateTime<chrono::Utc>>,
 }
 

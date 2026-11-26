@@ -27,26 +27,52 @@ use crate::model::{DeliveryOutcome, InstanceStatus};
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Sent {
     /// Accepted: the platform's URL or id for the post.
-    Posted { url_or_external_id: String },
+    /// The platform's URL or id for the post.
+    Posted {
+        /// The platform's URL or id for the post.
+        url_or_external_id: String,
+    },
     /// Refused by the platform: it provably did not take effect. `validation` marks a refusal of the content
     /// itself (too long, malformed) rather than of the credentials or the destination.
-    Refused { reason: String, validation: bool },
+    /// Why it was refused, and whether the content itself was the problem.
+    Refused {
+        /// Why it was refused.
+        reason: String,
+        /// Whether the content itself was refused.
+        validation: bool,
+    },
     /// Provably not sent and safe to try again; `after` is the platform's own hint (Retry-After and the like).
-    Retry { reason: String, after: Option<Duration>, rate_limited: bool },
+    /// Why a retry is safe, the platform's own wait hint, and whether it was a rate limit.
+    Retry {
+        /// Why a retry is safe.
+        reason: String,
+        /// The platform's own wait hint.
+        after: Option<Duration>,
+        /// Whether the cause was a rate limit.
+        rate_limited: bool,
+    },
     /// It may or may not have gone out. Recorded as `unknown` and never retried automatically.
-    Unknown { reason: String },
+    /// Why the outcome is unclear.
+    Unknown {
+        /// Why the outcome is unclear.
+        reason: String,
+    },
 }
 
 /// Retry bounds: at most `max_attempts` sends per instance (the claim counts each), exponential backoff from
 /// `base`, never more than `cap`, plus up to 20 % jitter.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct RetryPolicy {
+    /// The most sends one instance gets, the claim counting each.
     pub max_attempts: u32,
+    /// The wait after the first attempt; later waits double.
     pub base: Duration,
+    /// The longest wait between attempts.
     pub cap: Duration,
 }
 
 impl Default for RetryPolicy {
+    /// Five attempts, a 30-second first wait and a one-hour cap.
     fn default() -> Self {
         RetryPolicy { max_attempts: 5, base: Duration::from_secs(30), cap: Duration::from_secs(3600) }
     }
@@ -66,14 +92,20 @@ pub enum Ledger {
     Keep,
 }
 
+/// What the worker does with an instance after a send: its new status, the attempt row, when to retry, the spend ledger and the text to store.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Decision {
+    /// The status the instance moves to.
     pub to: InstanceStatus,
     /// `None` when no attempt is recorded (a stop at claim time).
     pub outcome: Option<DeliveryOutcome>,
+    /// How long to wait before the next attempt (set only for a retry).
     pub retry_in: Option<Duration>,
+    /// What happens to the spend reservation.
     pub ledger: Ledger,
+    /// The reason to store on the instance (clipped to the database limit).
     pub last_error: Option<String>,
+    /// The platform's URL or id for the post, when it was accepted.
     pub url_or_external_id: Option<String>,
 }
 
@@ -181,19 +213,23 @@ pub fn next_utc_midnight(now: DateTime<Utc>) -> DateTime<Utc> {
     Utc.from_utc_datetime(&tomorrow.and_time(chrono::NaiveTime::MIN))
 }
 
+/// Unit tests for this module.
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::instance_state::{Actor, allowed};
 
+    /// The default policy.
     fn p() -> RetryPolicy {
         RetryPolicy::default()
     }
 
+    /// A retry outcome with an optional wait hint in seconds.
     fn retry(after: Option<u64>, rate_limited: bool) -> Sent {
         Sent::Retry { reason: "r".into(), after: after.map(Duration::from_secs), rate_limited }
     }
 
+    /// Every decision is a move the worker may make.
     #[test]
     fn every_decision_is_a_move_the_worker_may_make() {
         let outcomes = [
@@ -215,6 +251,7 @@ mod tests {
         }
     }
 
+    /// The table.
     #[test]
     fn the_table() {
         let d = decide(&Sent::Posted { url_or_external_id: "https://x/1".into() }, 1, &p(), 0.0);
@@ -243,6 +280,7 @@ mod tests {
         assert_eq!((d.to, d.outcome, d.ledger), (InstanceStatus::ManualRequired, None, Ledger::Release));
     }
 
+    /// Unknown is never retried whatever the attempt count.
     #[test]
     fn unknown_is_never_retried_whatever_the_attempt_count() {
         for attempts in 0..20 {
@@ -251,6 +289,7 @@ mod tests {
         }
     }
 
+    /// Retries back off honour hints and stop at the bound.
     #[test]
     fn retries_back_off_honour_hints_and_stop_at_the_bound() {
         let d = decide(&retry(None, false), 1, &p(), 0.0);
@@ -270,6 +309,7 @@ mod tests {
         assert!(d.last_error.expect("why").starts_with("gave up after 5 attempts"));
     }
 
+    /// Texts are clipped to the column limit.
     #[test]
     fn texts_are_clipped_to_the_column_limit() {
         let long = "é".repeat(5000);
@@ -278,6 +318,7 @@ mod tests {
         assert_eq!(clip("abc", 5), "abc");
     }
 
+    /// The daily limit resets at midnight utc.
     #[test]
     fn the_daily_limit_resets_at_midnight_utc() {
         let now = Utc.with_ymd_and_hms(2026, 10, 31, 23, 59, 59).single().expect("t");

@@ -19,10 +19,12 @@ fn dead_pool() -> sqlx::PgPool {
         .expect("lazy pool")
 }
 
+/// The public router over a lazy pool (no connection is made).
 fn public_router() -> Router {
     public::router(PublicState { db: dead_pool(), config: std::sync::Arc::new(PublicConfig::default()) })
 }
 
+/// An authenticator with a static key set and one static admin.
 pub(crate) fn test_auth() -> std::sync::Arc<Authenticator> {
     Authenticator::new(AuthConfig {
         issuer: "https://team.cloudflareaccess.com".into(),
@@ -34,6 +36,7 @@ pub(crate) fn test_auth() -> std::sync::Arc<Authenticator> {
     .expect("authenticator")
 }
 
+/// The admin router over a lazy pool.
 fn admin_router() -> Router {
     admin::router(AdminState { db: dead_pool(), auth: test_auth(), ceilings: Ceilings::default() })
 }
@@ -48,6 +51,7 @@ fn concrete(path: &str) -> String {
     path.split('/').map(|seg| if seg.starts_with('{') { "1" } else { seg }).collect::<Vec<_>>().join("/")
 }
 
+/// The status a route answers with when called without credentials.
 async fn status(router: &Router, route: &Route) -> StatusCode {
     let req = Request::builder()
         .method(route.method.as_str())
@@ -57,6 +61,7 @@ async fn status(router: &Router, route: &Route) -> StatusCode {
     router.clone().oneshot(req).await.expect("infallible").status()
 }
 
+/// The public router serves its table and no admin route.
 #[tokio::test]
 async fn the_public_router_serves_its_table_and_no_admin_route() {
     let r = public_router();
@@ -68,6 +73,7 @@ async fn the_public_router_serves_its_table_and_no_admin_route() {
     }
 }
 
+/// The admin router serves its table and no public route.
 #[tokio::test]
 async fn the_admin_router_serves_its_table_and_no_public_route() {
     let r = admin_router();
@@ -82,6 +88,7 @@ async fn the_admin_router_serves_its_table_and_no_public_route() {
     }
 }
 
+/// The public router refuses every write method.
 #[tokio::test]
 async fn the_public_router_refuses_every_write_method() {
     let r = public_router();
@@ -94,6 +101,7 @@ async fn the_public_router_refuses_every_write_method() {
     }
 }
 
+/// Probes answer on both without and with a database.
 #[tokio::test]
 async fn probes_answer_on_both_without_and_with_a_database() {
     for r in [public_router(), admin_router()] {
@@ -108,6 +116,7 @@ async fn probes_answer_on_both_without_and_with_a_database() {
     }
 }
 
+/// Unknown paths get a json 404.
 #[tokio::test]
 async fn unknown_paths_get_a_json_404() {
     let req = Request::builder().uri("/api/v2/anything").body(Body::empty()).expect("request");

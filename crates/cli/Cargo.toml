@@ -1,4 +1,7 @@
+# The content hub's one binary. Each subcommand (admin, public, worker, migrate, seed, export-snapshot and the two
+# snapshot-key helpers) runs as its own process in a deployment, so one image serves every role.
 [package]
+# The package is named like the binary it builds.
 name = "content-hub"
 description = "The content hub's one binary: admin, public, worker, migrate, seed and export-snapshot subcommands."
 version.workspace = true
@@ -6,15 +9,20 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
+# Inherited: the crate is never published to crates.io.
 publish.workspace = true
 
+# Lints, version, edition and licence are inherited from the workspace manifest.
 [lints]
 workspace = true
 
+# The image's entry point, `content-hub`, with the subcommands as arguments.
 [[bin]]
 name = "content-hub"
 path = "src/main.rs"
 
+# Runtime dependencies are versioned once, in the workspace manifest.
+# Runtime dependencies are versioned once, in the workspace manifest. The tokio features are the ones this binary needs.
 [dependencies]
 content-hub-core = { workspace = true }
 content-hub-store = { workspace = true }

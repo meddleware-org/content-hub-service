@@ -11,6 +11,7 @@
 //! A development mode (static JWKS file, static admin list) exists for local work; the configuration loader refuses
 //! it in production (cli/main.rs).
 
+/// Token verification.
 pub mod jwt;
 
 use std::collections::{BTreeSet, HashMap};
@@ -32,10 +33,15 @@ pub const ACCESS_JWT_HEADER: &str = "cf-access-jwt-assertion";
 /// The custom header state-changing requests must carry (`@meddleware/content-hub-client` `CSRF_HEADER`).
 pub const CSRF_HEADER: &str = "x-content-hub-request";
 
+/// The shortest time between two key fetches triggered by an unknown key id.
 const JWKS_MIN_REFRESH: Duration = Duration::from_secs(30);
+/// How long a fetched key set is trusted.
 const JWKS_MAX_AGE: Duration = Duration::from_secs(3600);
+/// How long an "is an admin" answer is reused.
 const ROLE_ALLOWED_TTL: Duration = Duration::from_secs(30);
+/// How long a "not an admin" answer is reused (shorter, so a new grant takes effect soon).
 const ROLE_DENIED_TTL: Duration = Duration::from_secs(5);
+/// The largest key set that is read.
 const MAX_JWKS_BYTES: usize = 64 * 1024;
 
 /// Where the signing keys come from.
@@ -56,13 +62,16 @@ pub enum RoleSource {
     Static(BTreeSet<String>),
 }
 
+/// How tokens are checked and roles looked up.
 #[derive(Debug, Clone)]
 pub struct AuthConfig {
     /// The Access team domain, e.g. `https://team.cloudflareaccess.com` (the token's `iss`).
     pub issuer: String,
     /// The Access application's AUD tag.
     pub audience: String,
+    /// Where the signing keys come from.
     pub jwks: JwksSource,
+    /// Where roles come from.
     pub roles: RoleSource,
     /// The admin host's origin, e.g. `https://hub.example.org`.
     pub admin_origin: String,
@@ -71,24 +80,35 @@ pub struct AuthConfig {
 /// The authenticated operator, attached to the request.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Identity {
+    /// The identity provider's subject.
     pub subject: String,
+    /// The name shown.
     pub display_name: String,
 }
 
+/// Verifies tokens and looks roles up, caching both.
 pub struct Authenticator {
+    /// The configuration.
     cfg: AuthConfig,
+    /// The HTTP client for the key and role requests.
     http: reqwest::Client,
+    /// The cached keys and when they were fetched.
     keys: RwLock<(JwkSet, Option<Instant>)>,
+    /// When the keys were last fetched.
     last_refresh: Mutex<Option<Instant>>,
+    /// Recent role answers by subject, with when they were made.
     roles: Mutex<HashMap<String, (bool, Instant)>>,
 }
 
+/// The shape of Keto's answer to a check.
 #[derive(Deserialize)]
 struct KetoCheck {
+    /// Whether the subject has the relation.
     allowed: bool,
 }
 
 impl Authenticator {
+    /// Build an authenticator; its HTTP client has short timeouts and follows no redirects.
     pub fn new(cfg: AuthConfig) -> Result<Arc<Self>, ApiError> {
         install_crypto_provider();
         let http = reqwest::Client::builder()
@@ -110,10 +130,12 @@ impl Authenticator {
         }))
     }
 
+    /// The admin host's origin.
     pub fn admin_origin(&self) -> &str {
         &self.cfg.admin_origin
     }
 
+    /// Fetch the key set again (at most every 30 seconds unless `force`).
     async fn refresh_keys(&self, force: bool) -> Result<(), ApiError> {
         let JwksSource::Remote(url) = &self.cfg.jwks else { return Ok(()) };
         {
@@ -220,7 +242,9 @@ pub fn csrf_ok(method: &Method, headers: &HeaderMap, admin_origin: &str) -> bool
 
 /// What the middleware needs from the admin state.
 pub trait AuthState: Clone + Send + Sync + 'static {
+    /// The authenticator.
     fn authenticator(&self) -> &Arc<Authenticator>;
+    /// The database pool.
     fn db(&self) -> &sqlx::PgPool;
 }
 
@@ -256,12 +280,14 @@ pub async fn require_admin<S: AuthState>(State(state): State<S>, mut req: Reques
     next.run(req).await
 }
 
+/// Unit tests for this module.
 #[cfg(test)]
 mod tests {
     use axum::http::HeaderValue;
 
     use super::*;
 
+    /// Csrf requires the header and the origin on writes only.
     #[test]
     fn csrf_requires_the_header_and_the_origin_on_writes_only() {
         let origin = "https://hub.example.org";

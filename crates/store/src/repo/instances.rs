@@ -10,64 +10,105 @@ use uuid::Uuid;
 use super::{Page, PageRequest};
 use crate::Result;
 
+/// One platform instance: a post rendered for one target, and the queue row for it.
 #[derive(Debug, Clone, Serialize, utoipa::ToSchema)]
 pub struct Instance {
+    /// The instance's id.
     pub id: i64,
+    /// The post.
     pub post_id: i64,
+    /// The target.
     pub platform_target_id: i64,
+    /// A title that replaces the post's for this target.
     pub override_title: Option<String>,
+    /// A body that replaces the post's for this target.
     pub override_body: Option<String>,
+    /// Where the instance stands.
     pub status: String,
+    /// Progress reported by a third party, for platforms that have one.
     pub external_status: Option<String>,
+    /// The platform's URL or id for the post.
     pub url_or_external_id: Option<String>,
+    /// When it is to be sent.
     pub scheduled_at: Option<DateTime<Utc>>,
+    /// When it was posted.
     pub posted_at: Option<DateTime<Utc>>,
+    /// When the worker claimed it; set only while the status is `sending`.
     pub sending_started_at: Option<DateTime<Utc>>,
+    /// How many sends were claimed.
     pub attempt_count: i32,
+    /// When the next attempt is due.
     pub next_attempt_at: Option<DateTime<Utc>>,
+    /// The last error, if any.
     pub last_error: Option<String>,
+    /// The key that makes a retried send safe where the platform honours it.
     pub idempotency_key: Uuid,
+    /// The expected cost, in millionths of a US dollar.
     pub cost_estimate_usd_micros: i64,
+    /// Counters the operator records (impressions and the like).
     pub metrics: Value,
     /// The post revision the payload was rendered from (the post may have changed since).
     pub post_revision: Option<i32>,
     /// The payload exactly as validated and as the worker sends it.
     pub payload_title: Option<String>,
+    /// The body as validated when it was queued.
     pub payload_body: Option<String>,
+    /// The SHA-256 of the payload.
     pub payload_sha256: Option<String>,
+    /// When the instance was created.
     pub created_at: DateTime<Utc>,
+    /// When it last changed.
     pub updated_at: DateTime<Utc>,
 }
 
 /// A rendered, validated payload (the enqueue step's output).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Payload {
+    /// The post revision the payload was rendered from.
     pub post_revision: i32,
+    /// The rendered title.
     pub title: String,
+    /// The rendered body.
     pub body: String,
+    /// The SHA-256 of the title and body as they will be sent.
     pub sha256: String,
 }
 
+/// One send attempt on an instance.
 #[derive(Debug, Clone, Serialize, utoipa::ToSchema)]
 pub struct Attempt {
+    /// The attempt's id.
     pub id: i64,
+    /// When it started.
     pub started_at: DateTime<Utc>,
+    /// When it finished (empty while it is in flight).
     pub finished_at: Option<DateTime<Utc>>,
+    /// How it ended.
     pub outcome: Option<String>,
+    /// The HTTP status, if there was an answer.
     pub http_status: Option<i32>,
+    /// The start of the answer, with credentials removed.
     pub response_excerpt: Option<String>,
+    /// The request as sent, with credentials removed.
     pub request_redacted: Option<Value>,
+    /// Whether nothing was actually sent.
     pub dry_run: bool,
+    /// The SHA-256 of the payload that was (or would have been) sent.
     pub rendered_payload_sha256: String,
 }
 
+/// A filter for the list of instances.
 #[derive(Debug, Clone, Default)]
 pub struct InstanceFilter {
+    /// Only this status.
     pub status: Option<String>,
+    /// Only this target.
     pub platform_target_id: Option<i64>,
+    /// Only this post.
     pub post_id: Option<i64>,
 }
 
+/// A page of instances, newest first, matching the filter.
 pub async fn list(conn: &mut PgConnection, f: &InstanceFilter, page: PageRequest) -> Result<Page<Instance>> {
     let rows = sqlx::query_as!(
         Instance,
@@ -86,22 +127,26 @@ pub async fn list(conn: &mut PgConnection, f: &InstanceFilter, page: PageRequest
     Ok(page.page(rows, |r| r.id))
 }
 
+/// Every instance of a post.
 pub async fn for_post(conn: &mut PgConnection, post_id: i64) -> Result<Vec<Instance>> {
     Ok(sqlx::query_as!(Instance, "SELECT * FROM hub.platform_instances WHERE post_id = $1 ORDER BY id", post_id)
         .fetch_all(conn)
         .await?)
 }
 
+/// One instance.
 pub async fn get(conn: &mut PgConnection, id: i64) -> Result<Option<Instance>> {
     Ok(sqlx::query_as!(Instance, "SELECT * FROM hub.platform_instances WHERE id = $1", id).fetch_optional(conn).await?)
 }
 
+/// One instance, locked for the rest of the transaction.
 pub async fn get_for_update(conn: &mut PgConnection, id: i64) -> Result<Option<Instance>> {
     Ok(sqlx::query_as!(Instance, "SELECT * FROM hub.platform_instances WHERE id = $1 FOR UPDATE", id)
         .fetch_optional(conn)
         .await?)
 }
 
+/// The attempts on an instance, newest first.
 pub async fn attempts(conn: &mut PgConnection, id: i64) -> Result<Vec<Attempt>> {
     Ok(sqlx::query_as!(
         Attempt,
@@ -115,18 +160,27 @@ pub async fn attempts(conn: &mut PgConnection, id: i64) -> Result<Vec<Attempt>> 
 
 /// A new instance (from the enqueue step). The database refuses a second live instance on the same target.
 pub struct NewInstance<'a> {
+    /// The post.
     pub post_id: i64,
+    /// The target.
     pub platform_target_id: i64,
+    /// A replacement title, if any.
     pub override_title: Option<&'a str>,
+    /// A replacement body, if any.
     pub override_body: Option<&'a str>,
+    /// The starting status.
     pub status: &'a str,
+    /// When to send it.
     pub scheduled_at: Option<DateTime<Utc>>,
+    /// The expected cost.
     pub cost_estimate_usd_micros: i64,
+    /// The validated payload.
     pub payload: &'a Payload,
     /// Why it is not queued (a cap reached at enqueue), shown to the operator.
     pub last_error: Option<&'a str>,
 }
 
+/// Insert the instance; the database refuses a second live instance of the same post on the same target.
 pub async fn insert(conn: &mut PgConnection, n: &NewInstance<'_>) -> Result<Instance> {
     Ok(sqlx::query_as!(
         Instance,

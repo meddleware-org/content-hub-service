@@ -24,12 +24,21 @@ pub struct TaskContext<'a> {
     pub blocked_reason: Option<&'a str>,
 }
 
+/// Why a task move was refused.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
 pub enum TaskTransitionError {
+    /// The edge does not exist.
     #[error("a task cannot move from {from} to {to}")]
-    NotAllowed { from: TaskStatus, to: TaskStatus },
+    NotAllowed {
+        /// The status the task is in.
+        from: TaskStatus,
+        /// The status it was asked to move to.
+        to: TaskStatus,
+    },
+    /// A move to `blocked` needs a reason of 1 to 1000 characters.
     #[error("a blocked task needs a reason (1 to 1000 characters)")]
     BlockedNeedsReason,
+    /// The number of dependencies that are not yet done.
     #[error("{0} task(s) this one depends on are not done")]
     DependenciesUnfinished(usize),
 }
@@ -105,11 +114,13 @@ pub fn has_dependency_cycle<K: Ord + Clone>(edges: &[(K, K)]) -> bool {
     false
 }
 
+/// Unit tests for this module.
 #[cfg(test)]
 mod tests {
     use super::*;
     use TaskStatus::*;
 
+    /// Dependency cycles are found.
     #[test]
     fn dependency_cycles_are_found() {
         assert!(!has_dependency_cycle::<i32>(&[]));
@@ -128,6 +139,7 @@ mod tests {
         (Blocked, &[Planned, Ready, InProgress]),
     ];
 
+    /// Every pair matches the documented table.
     #[test]
     fn every_pair_matches_the_documented_table() {
         assert_eq!(TABLE.len(), TaskStatus::ALL.len());
@@ -138,6 +150,7 @@ mod tests {
         }
     }
 
+    /// No status moves to itself.
     #[test]
     fn no_status_moves_to_itself() {
         for &s in TaskStatus::ALL {
@@ -145,6 +158,7 @@ mod tests {
         }
     }
 
+    /// Blocking needs a non blank bounded reason.
     #[test]
     fn blocking_needs_a_non_blank_bounded_reason() {
         let no = TaskContext::default();
@@ -158,6 +172,7 @@ mod tests {
         assert_eq!(check(Ready, Blocked, ok), Ok(()));
     }
 
+    /// Unfinished dependencies stop starting and finishing only.
     #[test]
     fn unfinished_dependencies_stop_starting_and_finishing_only() {
         let deps = TaskContext { unfinished_dependencies: 2, ..TaskContext::default() };
@@ -167,6 +182,7 @@ mod tests {
         assert_eq!(check(InProgress, Ready, deps), Ok(()));
     }
 
+    /// A missing edge is reported before the context.
     #[test]
     fn a_missing_edge_is_reported_before_the_context() {
         assert_eq!(

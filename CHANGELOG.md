@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- Documentation pass: every file now has a header, every declaration (private items, fields and variants included) a doc comment, and the code,
+  manifests, workflows and scripts carry line-level comments that say why. `missing_docs` and `clippy::missing_docs_in_private_items` are
+  denied in the workspace lints, so a missing doc comment fails the build. No behaviour changed; the Rust diff is comment-only (compared with
+  comment lines stripped) apart from documentation-driven shape changes that keep the same behaviour (struct-variant fields written out one
+  per line so each can be documented).
+- `CONTRIBUTING.md` added.
+
 ## 0.0.5 — 2026-11-19
 
 - **Security:** runtime base `distroless/cc-debian13` moved to the digest that carries `zlib1g 1:1.3.dfsg+really1.3.1-1+b1+deb13u1`, the

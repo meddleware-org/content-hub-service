@@ -8,45 +8,78 @@ use uuid::Uuid;
 use super::{Page, PageRequest};
 use crate::Result;
 
+/// One roadmap item, with its internal and public wording.
 #[derive(Debug, Clone, Serialize, utoipa::ToSchema)]
 pub struct Item {
+    /// The item's id.
     pub id: i64,
+    /// The phase it belongs to.
     pub phase_id: i64,
+    /// The item's stable key.
     pub key: String,
+    /// The id the public views show instead of the internal one.
     pub public_id: Uuid,
+    /// What kind of item it is.
     pub item_type: String,
+    /// The title the operator sees.
     pub internal_title: String,
+    /// The description the operator sees.
     pub internal_description: String,
+    /// The title the public views show.
     pub public_title: Option<String>,
+    /// The description the public views show.
     pub public_description: Option<String>,
+    /// Whether people reading in a browser see it.
     pub visible_human: bool,
+    /// Whether the feeds for bots carry it.
     pub visible_bot: bool,
+    /// Where it stands.
     pub status: String,
+    /// When it is planned to start (never public).
     pub planned_at: Option<DateTime<Utc>>,
+    /// When it is due (never public).
     pub due_at: Option<DateTime<Utc>>,
+    /// The one date the public sees, when the operator chooses to publish it.
     pub public_due_at: Option<DateTime<Utc>>,
+    /// When it was created.
     pub created_at: DateTime<Utc>,
+    /// When it last changed.
     pub updated_at: DateTime<Utc>,
 }
 
+/// The writable fields of an item.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ItemFields {
+    /// The phase it belongs to.
     pub phase_id: i64,
+    /// The item's stable key.
     pub key: String,
+    /// What kind of item it is.
     pub item_type: String,
+    /// The title the operator sees.
     pub internal_title: String,
+    /// The description the operator sees.
     pub internal_description: String,
+    /// The title the public views show.
     pub public_title: Option<String>,
+    /// The description the public views show.
     pub public_description: Option<String>,
+    /// Whether people reading in a browser see it.
     pub visible_human: bool,
+    /// Whether the feeds for bots carry it.
     pub visible_bot: bool,
+    /// Where it stands.
     pub status: String,
+    /// When it is planned to start.
     pub planned_at: Option<DateTime<Utc>>,
+    /// When it is due.
     pub due_at: Option<DateTime<Utc>>,
+    /// The date the public sees, if any.
     pub public_due_at: Option<DateTime<Utc>>,
 }
 
 impl From<&Item> for ItemFields {
+    /// The editable fields of a item, taken from the stored one so a patch starts from the current state.
     fn from(i: &Item) -> Self {
         ItemFields {
             phase_id: i.phase_id,
@@ -66,13 +99,18 @@ impl From<&Item> for ItemFields {
     }
 }
 
+/// A filter for the list of items.
 #[derive(Debug, Clone, Default)]
 pub struct ItemFilter {
+    /// Only this phase.
     pub phase_id: Option<i64>,
+    /// Only this status.
     pub status: Option<String>,
+    /// Only this kind.
     pub item_type: Option<String>,
 }
 
+/// A page of items matching the filter.
 pub async fn list(conn: &mut PgConnection, f: &ItemFilter, page: PageRequest) -> Result<Page<Item>> {
     let rows = sqlx::query_as!(
         Item,
@@ -91,16 +129,19 @@ pub async fn list(conn: &mut PgConnection, f: &ItemFilter, page: PageRequest) ->
     Ok(page.page(rows, |r| r.id))
 }
 
+/// One item.
 pub async fn get(conn: &mut PgConnection, id: i64) -> Result<Option<Item>> {
     Ok(sqlx::query_as!(Item, "SELECT * FROM hub.roadmap_items WHERE id = $1", id).fetch_optional(conn).await?)
 }
 
+/// One item, locked for the rest of the transaction.
 pub async fn get_for_update(conn: &mut PgConnection, id: i64) -> Result<Option<Item>> {
     Ok(sqlx::query_as!(Item, "SELECT * FROM hub.roadmap_items WHERE id = $1 FOR UPDATE", id)
         .fetch_optional(conn)
         .await?)
 }
 
+/// Insert an item.
 pub async fn insert(conn: &mut PgConnection, f: &ItemFields) -> Result<Item> {
     Ok(sqlx::query_as!(
         Item,
@@ -125,6 +166,7 @@ pub async fn insert(conn: &mut PgConnection, f: &ItemFields) -> Result<Item> {
     .await?)
 }
 
+/// Replace an item's fields.
 pub async fn update(conn: &mut PgConnection, id: i64, f: &ItemFields) -> Result<Item> {
     Ok(sqlx::query_as!(
         Item,

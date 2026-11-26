@@ -65,10 +65,12 @@ impl Failure {
     }
 }
 
+/// A host the client will not connect to.
 #[derive(Debug)]
 struct Blocked(String);
 
 impl std::fmt::Display for Blocked {
+    /// Name the host that was refused.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{} resolves to no public address", self.0)
     }
@@ -80,6 +82,7 @@ impl std::error::Error for Blocked {}
 struct PublicResolver;
 
 impl Resolve for PublicResolver {
+    /// Resolve a name, refusing a private name and keeping only the public addresses it has.
     fn resolve(&self, name: Name) -> Resolving {
         let host = name.as_str().to_owned();
         Box::pin(async move {
@@ -98,10 +101,12 @@ impl Resolve for PublicResolver {
 
 /// Resolves only one configured host name (to whatever address it has: it is an internal service).
 struct SingleHostResolver {
+    /// The only host name this resolver answers for.
     host: String,
 }
 
 impl Resolve for SingleHostResolver {
+    /// Resolve only the configured host.
     fn resolve(&self, name: Name) -> Resolving {
         let allowed = self.host.clone();
         let asked = name.as_str().to_owned();
@@ -118,34 +123,42 @@ impl Resolve for SingleHostResolver {
 /// One request.
 #[derive(Debug, Clone)]
 pub struct Request {
+    /// The HTTP method.
     pub method: reqwest::Method,
+    /// The full URL.
     pub url: String,
     /// Header names and values (credentials included: never logged or stored).
     pub headers: Vec<(&'static str, String)>,
+    /// A JSON body.
     pub json: Option<Value>,
     /// A raw body (a blob), sent as `application/octet-stream`.
     pub bytes: Option<Vec<u8>>,
 }
 
 impl Request {
+    /// A POST with a JSON body.
     pub fn post(url: String, json: Value) -> Request {
         Request { method: reqwest::Method::POST, url, headers: Vec::new(), json: Some(json), bytes: None }
     }
 
+    /// A GET.
     pub fn get(url: String) -> Request {
         Request { method: reqwest::Method::GET, url, headers: Vec::new(), json: None, bytes: None }
     }
 
+    /// A PUT with a raw body.
     pub fn put_bytes(url: String, bytes: Vec<u8>) -> Request {
         Request { method: reqwest::Method::PUT, url, headers: Vec::new(), json: None, bytes: Some(bytes) }
     }
 
+    /// Add a header.
     pub fn header(mut self, name: &'static str, value: String) -> Request {
         self.headers.push((name, value));
         self
     }
 }
 
+/// Which hosts the client may reach.
 #[derive(Clone)]
 enum Mode {
     /// https only, public addresses only.
@@ -159,7 +172,9 @@ enum Mode {
 /// The publishers' client.
 #[derive(Clone)]
 pub struct Http {
+    /// The underlying client (no redirects, no proxy, short timeouts).
     client: reqwest::Client,
+    /// Which hosts it may reach.
     mode: Mode,
 }
 
@@ -185,6 +200,7 @@ impl Http {
         Self::build(Mode::Unchecked, timeout).expect("the test client builds")
     }
 
+    /// Build a client for a mode and a total timeout.
     fn build(mode: Mode, timeout: Duration) -> Result<Http, String> {
         install_crypto_provider();
         let mut b = reqwest::Client::builder()
@@ -207,17 +223,21 @@ impl Http {
 
     /// Send one request and read the reply (up to [`MAX_REPLY`]).
     pub async fn send(&self, r: Request) -> Result<Reply, Failure> {
+        // An unparsable URL is refused without being repeated.
         let url = url::Url::parse(&r.url).map_err(|_| Failure::Refused("not a valid URL".into()))?;
+        // The internal client may call only its one host, over http or https.
         if let Mode::Internal(host) = &self.mode {
             let same = matches!(url.host(), Some(url::Host::Domain(d)) if d.eq_ignore_ascii_case(host));
             if !same || !matches!(url.scheme(), "http" | "https") {
                 return Err(Failure::Refused("this client calls only its configured internal host".into()));
             }
         }
+        // The public client calls only https, and never a literal private address.
         if matches!(self.mode, Mode::Public) {
             if url.scheme() != "https" {
                 return Err(Failure::Refused("only https URLs are called".into()));
             }
+            // A literal address skips DNS, so it is checked here; names are checked by the resolver.
             let literal: Option<IpAddr> = match url.host() {
                 Some(url::Host::Ipv4(a)) => Some(a.into()),
                 Some(url::Host::Ipv6(a)) => Some(a.into()),
@@ -237,6 +257,7 @@ impl Http {
         if let Some(b) = r.bytes {
             req = req.header("content-type", "application/octet-stream").body(b);
         }
+        // Any transport error is classified by whether the request could have been sent.
         let mut resp = req.send().await.map_err(classify)?;
         let status = resp.status().as_u16();
         let headers = resp
@@ -246,6 +267,7 @@ impl Http {
             .collect();
         // The status is the answer; a body that cannot be read in full is kept as far as it was read.
         let mut body = Vec::new();
+        // Read the reply up to a fixed size, so a huge answer cannot exhaust memory.
         while body.len() < MAX_REPLY {
             match resp.chunk().await {
                 Ok(Some(c)) => body.extend_from_slice(&c[..c.len().min(MAX_REPLY - body.len())]),
@@ -256,6 +278,7 @@ impl Http {
     }
 }
 
+/// Turn a transport error into the failure class that decides whether a retry is safe.
 fn classify(e: reqwest::Error) -> Failure {
     let mut source = std::error::Error::source(&e);
     while let Some(s) = source {
@@ -275,10 +298,12 @@ fn classify(e: reqwest::Error) -> Failure {
     }
 }
 
+/// Unit tests for this module.
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    /// The production client refuses private and plain targets.
     #[tokio::test]
     async fn the_production_client_refuses_private_and_plain_targets() {
         let http = Http::new().expect("client");
@@ -300,6 +325,7 @@ mod tests {
         }
     }
 
+    /// Failures map to outcomes.
     #[test]
     fn failures_map_to_outcomes() {
         assert!(matches!(Failure::NotSent("x".into()).to_sent(), Sent::Retry { .. }));

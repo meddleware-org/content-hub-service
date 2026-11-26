@@ -1,11 +1,17 @@
 //! The admin process's router: every `/api/v1` route behind `auth::require_admin`, as the WRITER role. Every change
 //! commits with its audit-log row in one transaction.
 
+/// Budgets, the stop switch, the schedule, stats and the audit log.
 pub(crate) mod ops;
+/// Posts and queueing.
 pub(crate) mod posts;
+/// Rendering and validating a payload.
 pub(crate) mod prepare;
+/// Instances, platforms and targets.
 pub(crate) mod publishing;
+/// Phases and items.
 pub(crate) mod roadmap;
+/// Tasks.
 pub(crate) mod tasks;
 
 use std::sync::Arc;
@@ -24,7 +30,9 @@ use crate::{not_found, openapi, probe};
 /// below them. Every default is 0.
 #[derive(Debug, Clone, Copy, Default, Serialize, utoipa::ToSchema)]
 pub struct Ceilings {
+    /// The most all platforms together may cost in a month, in millionths of a US dollar (0 means nothing may be spent).
     pub total_monthly_usd_micros: i64,
+    /// The most one platform may cost in a month, in millionths of a US dollar.
     pub per_platform_monthly_usd_micros: i64,
 }
 
@@ -33,34 +41,45 @@ pub struct Ceilings {
 pub struct AdminState {
     /// A pool of the writer role (`Access::ReadWrite`).
     pub db: PgPool,
+    /// The authenticator for the identity provider's tokens.
     pub auth: Arc<Authenticator>,
+    /// The instance's spend ceilings.
     pub ceilings: Ceilings,
 }
 
 impl AuthState for AdminState {
+    /// The authenticator.
     fn authenticator(&self) -> &Arc<Authenticator> {
         &self.auth
     }
+    /// The database pool.
     fn db(&self) -> &PgPool {
         &self.db
     }
 }
 
+/// The signed-in person, as `GET /api/v1/me` returns them.
 #[derive(Serialize, utoipa::ToSchema)]
 pub struct Me {
+    /// The identity provider's subject.
     pub subject: String,
+    /// The name shown.
     pub display_name: String,
 }
 
+/// `GET /api/v1/me`: who the caller is.
 async fn me(Extension(id): Extension<Identity>) -> Json<Me> {
     Json(Me { subject: id.subject, display_name: id.display_name })
 }
 
+/// `GET /api/v1/openapi.json`: the admin API's OpenAPI document.
 async fn admin_openapi() -> Json<utoipa::openapi::OpenApi> {
     Json(openapi::admin())
 }
 
+/// The admin API: every route needs an admin token, the body is limited to 1 MiB and a request to 30 seconds.
 pub fn router(state: AdminState) -> Router {
+    // Every API route sits behind the admin check below.
     let api: Router<AdminState> = Router::new()
         .route("/api/v1/me", get(me))
         .route("/api/v1/openapi.json", get(admin_openapi))
@@ -89,8 +108,10 @@ pub fn router(state: AdminState) -> Router {
         .route("/api/v1/schedule", get(ops::schedule))
         .route("/api/v1/stats", get(ops::stats))
         .route("/api/v1/audit", get(ops::audit))
+        // Token, role and CSRF checks run before any handler, and only for these routes.
         .route_layer(middleware::from_fn_with_state(state.clone(), require_admin::<AdminState>));
     Router::new()
+        // The probes are outside the admin check, so the platform can reach them.
         .route("/healthz", get(probe::healthz))
         .route("/readyz", get(|State(s): State<AdminState>| async move { probe::readyz(&s.db).await }))
         .merge(api)
@@ -106,6 +127,7 @@ pub fn router(state: AdminState) -> Router {
 
 // ── shared validation helpers ───────────────────────────────────────────────────────────────────────────
 
+/// Check that a text has `min` to `max` characters.
 pub(crate) fn text(field: &str, s: &str, min: usize, max: usize) -> ApiResult<()> {
     let n = s.chars().count();
     if n < min || n > max {
@@ -114,6 +136,7 @@ pub(crate) fn text(field: &str, s: &str, min: usize, max: usize) -> ApiResult<()
     Ok(())
 }
 
+/// Check that a value is a key (lower-case letters, digits and hyphens, up to 63 characters).
 pub(crate) fn key(field: &str, s: &str) -> ApiResult<()> {
     if content_hub_core::ident::is_key(s) {
         Ok(())
@@ -141,6 +164,7 @@ pub(crate) fn https_url(field: &str, s: &str) -> ApiResult<()> {
     if public && u.username().is_empty() && u.password().is_none() { Ok(()) } else { Err(bad()) }
 }
 
+/// Parse an enumeration value, answering a 400 that names the field for an unknown one.
 pub(crate) fn parse_enum<T: std::str::FromStr>(field: &str, s: &str) -> ApiResult<T> {
     s.parse::<T>().map_err(|_| ApiError::Invalid(format!("{field}: unknown value {s:?}")))
 }
@@ -150,18 +174,22 @@ pub(crate) fn normalise_body(s: &str) -> String {
     s.replace("\r\n", "\n").replace('\r', "\n")
 }
 
+/// A value as JSON for the audit log, or `None` if it cannot be serialised.
 pub(crate) fn json<T: Serialize>(v: &T) -> Option<serde_json::Value> {
     serde_json::to_value(v).ok()
 }
 
+/// The value, or a 404 when there is none.
 pub(crate) fn found<T>(o: Option<T>) -> ApiResult<T> {
     o.ok_or(ApiError::NotFound)
 }
 
+/// Unit tests for this module.
 #[cfg(test)]
 mod tests {
     use super::https_url;
 
+    /// Https urls must name public hosts.
     #[test]
     fn https_urls_must_name_public_hosts() {
         for ok in

@@ -22,56 +22,80 @@ use crate::text::segment::{SegmentTarget, segment};
 /// The committed inputs.
 pub const INPUT_JSON: &str = include_str!("../vectors-input.json");
 
+/// One counting rule set in the input file.
 #[derive(Deserialize)]
 struct RuleIn {
+    /// How characters are counted.
     method: CountingMethod,
+    /// What a link counts for, when the method gives links a fixed weight.
     #[serde(default)]
     url_weight: Option<u32>,
+    /// Whether a mention counts only its local part.
     #[serde(default)]
     mention_local_part: bool,
 }
 
+/// One segmentation case in the input file.
 #[derive(Deserialize)]
 struct SegIn {
+    /// The source text to split.
     source: String,
+    /// The destinations: name, markup, counting method and limit.
     targets: Vec<(String, Markup, CountingMethod, u64)>,
 }
 
 /// A definition's limits, a target's configuration and a post, to be resolved and checked.
 #[derive(Deserialize)]
 struct LimitIn {
+    /// The markup the destination renders.
     markup: Markup,
+    /// How the destination counts, if it limits length.
     #[serde(default)]
     counting_method: Option<CountingMethod>,
+    /// The destination's main limit.
     #[serde(default)]
     primary_limit: Option<i64>,
+    /// Its further limits by name.
     #[serde(default)]
     secondary_limits: BTreeMap<String, Value>,
+    /// The target's own configuration.
     #[serde(default)]
     target_config: Option<Value>,
+    /// The post title.
     title: String,
+    /// The post body.
     body: String,
 }
 
+/// The whole input file.
 #[derive(Deserialize)]
 struct Input {
+    /// Counting cases, as text.
     counting: Vec<String>,
+    /// Counting rules.
     count_rules: Vec<RuleIn>,
+    /// Rendering cases, as text.
     rendering: Vec<String>,
+    /// The markups to render each case in.
     markups: Vec<Markup>,
+    /// Segmentation cases.
     segmentation: Vec<SegIn>,
+    /// Limit checks.
     limits: Vec<LimitIn>,
 }
 
 /// The full vectors document.
 pub fn generate() -> Value {
+    // The inputs are committed in a file; a broken file stops generation at once.
     let input: Input = serde_json::from_str(INPUT_JSON).expect("vectors-input.json is valid");
 
     let enumerations: serde_json::Map<String, Value> =
+        // The enumerations come from the one list the store's parity test also uses.
         stored_enumerations().into_iter().map(|(t, c, v)| (format!("{t}.{c}"), json!(v))).collect();
     let mut task_transitions = Vec::new();
     for &f in TaskStatus::ALL {
         for &t in TaskStatus::ALL {
+            // Every allowed task move, found by trying every pair.
             if task_state::edge_exists(f, t) {
                 task_transitions.push(json!([f, t]));
             }
@@ -80,6 +104,7 @@ pub fn generate() -> Value {
     let mut instance_transitions = Vec::new();
     for &f in InstanceStatus::ALL {
         for &t in InstanceStatus::ALL {
+            // Every allowed instance move, with the actor that may make it.
             for (a, name) in [(Actor::Operator, "operator"), (Actor::Worker, "worker"), (Actor::Janitor, "janitor")] {
                 if instance_state::allowed(a, f, t) {
                     instance_transitions.push(json!([f, t, name]));
@@ -89,6 +114,7 @@ pub fn generate() -> Value {
     }
 
     let mut counting = Vec::new();
+    // Every rule set against every counting text.
     for r in &input.count_rules {
         let rules = CountRules { method: r.method, url_weight: r.url_weight, mention_local_part: r.mention_local_part };
         for text in &input.counting {
@@ -103,6 +129,7 @@ pub fn generate() -> Value {
     }
 
     let mut rendering = Vec::new();
+    // Every source rendered in every markup.
     for source in &input.rendering {
         for &m in &input.markups {
             let r = render_source(m, source);
@@ -121,6 +148,7 @@ pub fn generate() -> Value {
                 limits: Limits { rules: CountRules::plain(*method), primary: Some(*limit), bytes: None, title: None },
             })
             .collect();
+        // Positions in the output are code-point offsets, so the TypeScript side can compare them directly.
         let seg = segment(&case.source, &targets);
         segmentation.push(json!({
             "source": case.source,
@@ -134,6 +162,7 @@ pub fn generate() -> Value {
     for case in &input.limits {
         let config = case.target_config.clone().unwrap_or_else(|| json!({}));
         let base = Limits::from_definition(case.counting_method, case.primary_limit, &case.secondary_limits);
+        // The limits as one target resolves them: the definition's, adjusted by the target's own configuration.
         let resolved = for_target(base, &case.secondary_limits, &config);
         let input_json = json!({
             "markup": case.markup,
@@ -145,6 +174,7 @@ pub fn generate() -> Value {
             "body": case.body,
         });
         let result = match resolved {
+            // A platform with no limits still has a rendered payload.
             None => json!({ "limits": null, "payload": render_source(case.markup, &case.body).payload }),
             Some(l) => {
                 let c = check(case.markup, &l, Some(&case.title), &case.body);

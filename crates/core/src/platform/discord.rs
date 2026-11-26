@@ -22,11 +22,13 @@ pub enum Mode {
 }
 
 impl Mode {
+    /// The mode in the platform's configuration: `embed` selects the embed form, anything else the plain content form.
     pub fn from_config(config: &Value) -> Mode {
         if config.get("mode").and_then(Value::as_str) == Some("embed") { Mode::Embed } else { Mode::Content }
     }
 }
 
+/// Whether `s` is one to `max` ASCII digits.
 fn digits(s: &str, max: usize) -> bool {
     !s.is_empty() && s.len() <= max && s.bytes().all(|b| b.is_ascii_digit())
 }
@@ -131,32 +133,45 @@ pub fn crosspost_url(base: &str, channel_id: &str, message_id: &str) -> String {
     format!("{}/api/v10/channels/{channel_id}/messages/{message_id}/crosspost", base.trim_end_matches('/'))
 }
 
+/// Unit tests for this module.
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    /// A reply with no headers.
     fn reply(status: u16, body: &str) -> Reply {
         Reply { status, headers: vec![], body: body.into() }
     }
 
+    /// Webhook urls are checked and never echoed.
     #[test]
     fn webhook_urls_are_checked_and_never_echoed() {
+        // The platform's host, as the definition gives it.
         let base = "https://discord.com";
         assert_eq!(
             webhook_url(base, "https://discord.com/api/webhooks/123456789012345678/AbC-_x9").as_deref(),
             Ok("https://discord.com/api/webhooks/123456789012345678/AbC-_x9?wait=true")
         );
+        // A versioned path is accepted too.
         assert!(webhook_url(base, "https://discord.com/api/v10/webhooks/1/tok").is_ok());
         for bad in [
+            // A different host: the webhook is a credential and must only go to the platform.
             "https://evil.example/api/webhooks/1/tok",
+            // A look-alike host that starts with the right name.
             "https://discord.com.evil.example/api/webhooks/1/tok",
+            // The id must be digits.
             "https://discord.com/api/webhooks/abc/tok",
+            // No query is accepted: the client adds its own.
             "https://discord.com/api/webhooks/1/tok?x=1",
+            // A missing token.
             "https://discord.com/api/webhooks/1/",
+            // Plain http is refused.
             "http://discord.com/api/webhooks/1/tok",
+            // Something that is not a webhook at all, with a password in it.
             "postgres://user:pw@db/x",
         ] {
             let e = webhook_url(base, bad).expect_err(bad);
+            // The error never repeats any part of what was given.
             assert!(!e.contains("tok") && !e.contains("pw"), "{e}");
         }
         assert_eq!(
@@ -165,10 +180,13 @@ mod tests {
         );
     }
 
+    /// Bodies never allow mentions.
     #[test]
     fn bodies_never_allow_mentions() {
+        // A configured display name is passed on.
         let c = json!({"username": "Hub"});
         let b = body(Mode::Content, "T", "hi @everyone", &c);
+        // `allowed_mentions.parse` is empty, so `@everyone` in the text pings nobody.
         assert_eq!(b, json!({"content": "hi @everyone", "allowed_mentions": {"parse": []}, "username": "Hub"}));
         let b = body(Mode::Embed, "Title", "Body", &json!({}));
         assert_eq!(b["embeds"][0], json!({"title": "Title", "description": "Body"}));
@@ -196,19 +214,24 @@ mod tests {
             classify(&ok, &json!({})),
             Sent::Posted { url_or_external_id: "discord:1200000000000000002/1300000000000000001".into() }
         );
+        // The platform gives the wait in seconds with decimals; it is read to the millisecond.
         let limited = reply(429, r#"{"message":"You are being rate limited.","retry_after":64.57,"global":false}"#);
         match classify(&limited, &json!({})) {
             Sent::Retry { after: Some(d), rate_limited: true, .. } => assert_eq!(d.as_millis(), 64_570),
             other => panic!("{other:?}"),
         }
+        // A 400 refuses the message itself, so it is a validation refusal.
         let empty = reply(400, r#"{"code":50006,"message":"Cannot send an empty message"}"#);
         assert_eq!(
             classify(&empty, &json!({})),
             Sent::Refused { reason: "HTTP 400: Cannot send an empty message (code 50006)".into(), validation: true }
         );
+        // A 404 means the webhook is gone: a refusal of the destination, not the content.
         let gone = reply(404, r#"{"code":10015,"message":"Unknown Webhook"}"#);
         assert!(matches!(classify(&gone, &json!({})), Sent::Refused { validation: false, .. }));
+        // A gateway error might still have posted, so it is unknown.
         assert!(matches!(classify(&reply(502, "bad gateway"), &json!({})), Sent::Unknown { .. }));
+        // A 2xx is a success even if the body is not the expected message.
         assert!(matches!(classify(&reply(200, "not json"), &json!({})), Sent::Posted { .. }));
     }
 }

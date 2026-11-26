@@ -1,9 +1,15 @@
+# Dependabot: weekly update pull requests for each package ecosystem this repository uses. Each ecosystem groups its
+# updates so one pull request covers a week's worth, and none opens more than five at a time.
 version: 2
 updates:
+  # The Rust workspace (Cargo.lock at the root). Minor and patch updates arrive together; majors arrive one by one,
+  # because each may need code changes.
   - package-ecosystem: cargo
     directory: /
+    # Checked once a week (the same schedule for each ecosystem below).
     schedule:
       interval: weekly
+    # At most five open update pull requests at a time for this ecosystem (the same limit for each below).
     open-pull-requests-limit: 5
     groups:
       cargo-minor-patch:
@@ -17,6 +23,7 @@ updates:
     groups:
       contract-npm:
         patterns: ['*']
+  # The base images in the Dockerfile (pinned by digest, so only an update pull request changes them).
   - package-ecosystem: docker
     directory: /
     schedule:
@@ -25,6 +32,7 @@ updates:
     groups:
       docker:
         patterns: ['*']
+  # The actions the workflows use, which are pinned by commit hash with a version comment.
   - package-ecosystem: github-actions
     directory: /
     schedule:

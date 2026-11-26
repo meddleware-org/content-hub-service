@@ -47,6 +47,7 @@ pub async fn run(owner: &DatabaseSettings) -> Result<Vec<i64>> {
     result
 }
 
+/// The versions of the migrations that were applied successfully, oldest first; empty before the first one.
 async fn applied_versions(conn: &mut PgConnection) -> Result<Vec<i64>> {
     match sqlx::query_scalar::<_, i64>("SELECT version FROM public._sqlx_migrations WHERE success ORDER BY version")
         .fetch_all(&mut *conn)
@@ -58,6 +59,7 @@ async fn applied_versions(conn: &mut PgConnection) -> Result<Vec<i64>> {
     }
 }
 
+/// Whether a database error is "undefined table" (SQLSTATE 42P01).
 fn is_undefined_table(e: &sqlx::Error) -> bool {
     e.as_database_error().and_then(|d| d.code()).is_some_and(|c| c == "42P01")
 }
@@ -78,12 +80,15 @@ pub async fn schema_version<'e>(db: impl PgExecutor<'e>) -> Result<Option<i64>> 
 /// Whether the database is ready for this build: reachable and migrated to at least [`SCHEMA_VERSION`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Readiness {
+    /// Reachable and migrated to this build's schema version or later.
     Ready,
     /// Reachable, schema older than this build (the migrate Job has not run yet).
     SchemaBehind(Option<i64>),
+    /// The database cannot be reached.
     Unreachable,
 }
 
+/// Whether the database is ready for this build.
 pub async fn readiness(pool: &PgPool) -> Readiness {
     match schema_version(pool).await {
         Ok(Some(v)) if v >= SCHEMA_VERSION => Readiness::Ready,
@@ -92,10 +97,12 @@ pub async fn readiness(pool: &PgPool) -> Readiness {
     }
 }
 
+/// Unit tests for this module.
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    /// Migrations are numbered from one without gaps and the last is the schema version.
     #[test]
     fn migrations_are_numbered_from_one_without_gaps_and_the_last_is_the_schema_version() {
         let versions: Vec<i64> = MIGRATOR.iter().map(|m| m.version).collect();

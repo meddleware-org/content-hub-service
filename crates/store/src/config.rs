@@ -10,19 +10,25 @@ use sqlx::postgres::{PgConnectOptions, PgPool, PgPoolOptions, PgSslMode};
 use sqlx::{ConnectOptions, Executor};
 use url::Url;
 
+/// Why a database URL was refused. No variant repeats the URL or a password.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum ConfigError {
+    /// A required variable is not set; the name follows.
     #[error("{0} is not set")]
     Missing(&'static str),
+    /// The value is not a `postgres://` URL.
     #[error("DATABASE_URL is not a valid postgres:// URL")]
     NotAUrl,
+    /// The URL lacks a part (host, user, password or database name).
     #[error("DATABASE_URL has no {0}")]
     Incomplete(&'static str),
     #[error(
         "DATABASE_URL must use sslmode=verify-full with sslrootcert=<the tier's CA> (set ALLOW_INSECURE_DATABASE=1 \
          only for a local test server)"
     )]
+    /// The URL does not ask for `sslmode=verify-full` with the tier's CA, and the insecure switch is off.
     NotVerifyFull,
+    /// The URL carries a query parameter other than `sslmode`, `sslrootcert` and `application_name`.
     #[error("DATABASE_URL parameter {0} is not allowed (only sslmode, sslrootcert and application_name)")]
     UnknownParameter(String),
 }
@@ -40,11 +46,14 @@ pub enum Access {
 /// Parsed connection settings for one role.
 #[derive(Clone)]
 pub struct DatabaseSettings {
+    /// The parsed URL, which holds the password.
     url: Url,
+    /// Whether the connection uses TLS.
     tls: bool,
 }
 
 impl fmt::Debug for DatabaseSettings {
+    /// Show the host, port, user, database and TLS flag; the password is replaced by a marker.
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("DatabaseSettings")
             .field("host", &self.url.host_str().unwrap_or_default())
@@ -60,10 +69,13 @@ impl fmt::Debug for DatabaseSettings {
 impl DatabaseSettings {
     /// Parse a URL. Without `allow_insecure` only `sslmode=verify-full` with `sslrootcert` is accepted.
     pub fn parse(raw: &str, allow_insecure: bool) -> Result<Self, ConfigError> {
+        // The parse error is dropped: it could quote the URL, which holds the password.
         let url = Url::parse(raw).map_err(|_| ConfigError::NotAUrl)?;
+        // Only PostgreSQL URLs, so a URL for another service is refused.
         if !matches!(url.scheme(), "postgres" | "postgresql") {
             return Err(ConfigError::NotAUrl);
         }
+        // Each missing part is named by what it is, never by its value.
         if url.host_str().is_none_or(str::is_empty) {
             return Err(ConfigError::Incomplete("host"));
         }
@@ -76,17 +88,22 @@ impl DatabaseSettings {
         if url.path().trim_start_matches('/').is_empty() {
             return Err(ConfigError::Incomplete("database name"));
         }
+        // The two TLS parameters are read; everything else in the query is refused.
         let mut sslmode = None;
         let mut root = None;
         for (k, v) in url.query_pairs() {
             match &*k {
                 "sslmode" => sslmode = Some(v.into_owned()),
                 "sslrootcert" => root = Some(v.into_owned()),
+                // The one harmless extra parameter.
                 "application_name" => {}
+                // Anything else (`options`, `host`) could change how the connection behaves, so it is refused by name.
                 other => return Err(ConfigError::UnknownParameter(other.to_owned())),
             }
         }
+        // Verify-full means the certificate chain and the host name are both checked against the tier's CA.
         let verify_full = sslmode.as_deref() == Some("verify-full") && root.as_deref().is_some_and(|r| !r.is_empty());
+        // A weaker setting is accepted only behind the explicit local-test switch.
         if !verify_full && !allow_insecure {
             return Err(ConfigError::NotVerifyFull);
         }
@@ -96,18 +113,22 @@ impl DatabaseSettings {
     /// From the process environment (`get` is `std::env::var(..).ok()` in production, a map in tests).
     pub fn from_env(get: impl Fn(&str) -> Option<String>) -> Result<Self, ConfigError> {
         let url = get("DATABASE_URL").filter(|v| !v.is_empty()).ok_or(ConfigError::Missing("DATABASE_URL"))?;
+        // Exactly `1`; anything else leaves the switch off.
         let insecure = get("ALLOW_INSECURE_DATABASE").is_some_and(|v| v == "1");
         Self::parse(&url, insecure)
     }
 
+    /// The database user.
     pub fn user(&self) -> &str {
         self.url.username()
     }
 
+    /// The database name.
     pub fn database(&self) -> &str {
         self.url.path().trim_start_matches('/')
     }
 
+    /// Whether the connection uses TLS.
     pub fn tls_enabled(&self) -> bool {
         self.tls
     }
@@ -156,26 +177,34 @@ impl DatabaseSettings {
     }
 }
 
+/// Unit tests for this module.
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    /// A valid URL: verify-full TLS with a CA file (the password is a stand-in).
     const GOOD: &str =
         "postgres://hub_app:s3cret@db.example:5432/content_hub?sslmode=verify-full&sslrootcert=/etc/ca.crt";
 
+    /// Verify full with a root is accepted.
     #[test]
     fn verify_full_with_a_root_is_accepted() {
         let s = DatabaseSettings::parse(GOOD, false).expect("valid");
+        // A verified URL reports TLS as on.
         assert!(s.tls_enabled());
         assert_eq!((s.user(), s.database()), ("hub_app", "content_hub"));
     }
 
+    /// Every weaker tls setting is refused.
     #[test]
     fn every_weaker_tls_setting_is_refused() {
         for url in [
             "postgres://u:p@h/db",
+            // `require` encrypts but does not check the server.
             "postgres://u:p@h/db?sslmode=require&sslrootcert=/ca",
+            // `verify-ca` checks the chain but not the host name.
             "postgres://u:p@h/db?sslmode=verify-ca&sslrootcert=/ca",
+            // A CA file is required too.
             "postgres://u:p@h/db?sslmode=verify-full",
             "postgres://u:p@h/db?sslmode=verify-full&sslrootcert=",
             "postgres://u:p@h/db?sslmode=disable",
@@ -187,9 +216,11 @@ mod tests {
         assert!(!s.tls_enabled());
     }
 
+    /// Incomplete or foreign urls are refused.
     #[test]
     fn incomplete_or_foreign_urls_are_refused() {
         let cases = [
+            // Another database's scheme.
             ("mysql://u:p@h/db", ConfigError::NotAUrl),
             ("not a url", ConfigError::NotAUrl),
             ("postgres://u@h/db?sslmode=verify-full&sslrootcert=/ca", ConfigError::Incomplete("password")),
@@ -205,6 +236,7 @@ mod tests {
         }
     }
 
+    /// The password never appears in debug or errors.
     #[test]
     fn the_password_never_appears_in_debug_or_errors() {
         let s = DatabaseSettings::parse(GOOD, false).expect("valid");
@@ -214,6 +246,7 @@ mod tests {
         assert!(!e.to_string().contains("s3cret"));
     }
 
+    /// From env needs the url and reads the insecure switch.
     #[test]
     fn from_env_needs_the_url_and_reads_the_insecure_switch() {
         let none = |_: &str| None;
@@ -232,6 +265,7 @@ mod tests {
         assert_eq!(DatabaseSettings::from_env(not_one).unwrap_err(), ConfigError::NotVerifyFull);
     }
 
+    /// Credentials can be swapped keeping tls.
     #[test]
     fn credentials_can_be_swapped_keeping_tls() {
         let s = DatabaseSettings::parse(GOOD, false).expect("valid");

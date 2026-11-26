@@ -57,6 +57,13 @@ The content hub's backend. Design and the reasons behind it: [docs/ARCHITECTURE.
 - **Lean.** SQLx (Postgres only), axum, tower, clap, tracing. One TLS stack: rustls with ring. JWT verification uses
   ring's RSA verifier (not `jsonwebtoken`: its backends are aws-lc-rs or the advisory-flagged `rsa` crate).
 
+## Documentation rules (workspace documentation standard, D144)
+
+Every file has a header and every declaration a doc comment, struct and enum fields and variants included (`missing_docs` and
+`clippy::missing_docs_in_private_items` are `deny` in the workspace lints, so clippy fails the build on a gap). Comments say why. Applied SQL
+migrations (`crates/store/migrations/*.sql`) are never edited, comments included, because their checksums are verified. `node
+scripts/check-docs.mjs --report content-hub-service` (in the workspace repository) is the gate. See [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ## Layers and commands
 
 | Crate | Depends on (workspace) | Holds |

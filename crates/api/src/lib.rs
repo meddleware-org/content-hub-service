@@ -9,13 +9,21 @@
 
 #![forbid(unsafe_code)]
 
+/// The admin surface.
 pub mod admin;
+/// Token and role checks.
 pub mod auth;
+/// The API's error type.
 pub mod error;
+/// Request extractors.
 pub mod extract;
+/// The OpenAPI documents.
 pub mod openapi;
+/// Liveness and readiness.
 pub mod probe;
+/// The public surface.
 pub mod public;
+/// The route tables.
 pub mod routes;
 
 use axum::response::{IntoResponse, Response};
@@ -25,8 +33,10 @@ pub(crate) async fn not_found() -> Response {
     error::ApiError::NotFound.into_response()
 }
 
+/// Unit tests for this module.
 #[cfg(test)]
 mod tests;
 
+/// Handler tests against a real database (skipped when none is configured).
 #[cfg(test)]
 mod handler_tests;

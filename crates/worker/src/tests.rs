@@ -24,11 +24,13 @@ use super::*;
 
 // ── fixtures ─────────────────────────────────────────────────────────────────────────────────────────────
 
+/// A migrated test database with the generic platform definitions applied.
 struct Env {
     _db: TestDb,
     pool: PgPool,
 }
 
+/// Create the test database as the writer role and seed the definitions; `None` when none is configured.
 async fn env() -> Option<Env> {
     let db = TestDb::migrated().await?;
     let pool = db.pool(&db.writer, Access::ReadWrite);
@@ -47,10 +49,12 @@ macro_rules! need {
     };
 }
 
+/// Run a statement, panicking with the statement on failure.
 async fn exec(pool: &PgPool, sql: &str) {
     sqlx::raw_sql(sqlx::AssertSqlSafe(sql.to_owned())).execute(pool).await.unwrap_or_else(|e| panic!("{e}\n{sql}"));
 }
 
+/// The first column of the first row of a query.
 async fn scalar<T: for<'r> sqlx::Decode<'r, sqlx::Postgres> + sqlx::Type<sqlx::Postgres> + Send + Unpin>(
     pool: &PgPool,
     sql: &str,
@@ -62,6 +66,7 @@ async fn scalar<T: for<'r> sqlx::Decode<'r, sqlx::Postgres> + sqlx::Type<sqlx::P
         .get(0)
 }
 
+/// Insert a ready post and return its id.
 async fn post(pool: &PgPool) -> i64 {
     scalar(pool, "INSERT INTO hub.posts (title, body_markdown, status, created_by) VALUES ('T', 'Hello', 'ready', 't') RETURNING id").await
 }
@@ -123,10 +128,12 @@ async fn queued(pool: &PgPool, target_id: i64, cost: i64) -> i64 {
     i.id
 }
 
+/// An instance's status.
 async fn status(pool: &PgPool, id: i64) -> String {
     scalar(pool, &format!("SELECT status FROM hub.platform_instances WHERE id = {id}")).await
 }
 
+/// A worker against the database, with a short-timeout test client, a base URL override for the mock and the given credentials.
 fn worker(pool: &PgPool, base: Option<&str>, cfg: WorkerConfig, secrets: &[(&str, &str)]) -> Worker {
     let map: BTreeMap<String, String> = secrets.iter().map(|(k, v)| ((*k).to_owned(), (*v).to_owned())).collect();
     Worker {
@@ -138,6 +145,7 @@ fn worker(pool: &PgPool, base: Option<&str>, cfg: WorkerConfig, secrets: &[(&str
     }
 }
 
+/// A configuration in which real sends are allowed.
 fn live_cfg() -> WorkerConfig {
     WorkerConfig { live: true, production: true, ..WorkerConfig::default() }
 }
@@ -147,6 +155,7 @@ fn live_cfg() -> WorkerConfig {
 /// A scripted reply for a path: status, body, delay.
 type Reply = dyn Fn(&str) -> (u16, String, Duration) + Send + Sync;
 
+/// A mock platform that logs what it receives and records the instance status it saw.
 #[derive(Clone)]
 struct Mock {
     log: Arc<Mutex<Vec<(String, Value)>>>,
@@ -156,6 +165,7 @@ struct Mock {
     reply: Arc<Reply>,
 }
 
+/// Log the request, note every instance status at that moment and answer as scripted.
 async fn handle(State(m): State<Mock>, uri: Uri, body: Bytes) -> impl IntoResponse {
     let path = uri.path().to_owned();
     m.log.lock().expect("log").push((path.clone(), serde_json::from_slice(&body).unwrap_or(Value::Null)));
@@ -174,6 +184,7 @@ async fn handle(State(m): State<Mock>, uri: Uri, body: Bytes) -> impl IntoRespon
     (StatusCode::from_u16(code).expect("code"), [("content-type", "application/json")], text)
 }
 
+/// Start a mock platform on a local port and return its base URL.
 async fn mock(
     pool: &PgPool,
     reply: impl Fn(&str) -> (u16, String, Duration) + Send + Sync + 'static,
@@ -186,11 +197,14 @@ async fn mock(
     (format!("http://{addr}"), m)
 }
 
+/// What a Discord webhook answers with `wait=true`.
 const DISCORD_OK: &str = r#"{"id":"1300000000000000001","channel_id":"1200000000000000002"}"#;
+/// The name of the credential variable the tests use.
 const HOOK_REF: &str = "PLATFORM_DISCORD_TEST_WEBHOOK_URL";
 
 // ── tests ────────────────────────────────────────────────────────────────────────────────────────────────
 
+/// A dry run records the redacted request and hands over to a person.
 #[tokio::test]
 async fn a_dry_run_records_the_redacted_request_and_hands_over_to_a_person() {
     let e = need!();
@@ -227,6 +241,7 @@ async fn a_dry_run_records_the_redacted_request_and_hands_over_to_a_person() {
     assert!(m.log.lock().expect("log").is_empty());
 }
 
+/// Sending is committed before the call and the post is recorded.
 #[tokio::test]
 async fn sending_is_committed_before_the_call_and_the_post_is_recorded() {
     let e = need!();
@@ -269,6 +284,7 @@ async fn sending_is_committed_before_the_call_and_the_post_is_recorded() {
     assert_eq!(w.tick().await.expect("tick"), Tick::Idle);
 }
 
+/// Retries back off and unknown is never claimed again.
 #[tokio::test]
 async fn retries_back_off_and_unknown_is_never_claimed_again() {
     let e = need!();
@@ -311,6 +327,7 @@ async fn retries_back_off_and_unknown_is_never_claimed_again() {
     drop(m);
 }
 
+/// Attempts stop at the bound.
 #[tokio::test]
 async fn attempts_stop_at_the_bound() {
     let e = need!();
@@ -327,6 +344,7 @@ async fn attempts_stop_at_the_bound() {
     assert!(why.starts_with("gave up after 2 attempts"), "{why}");
 }
 
+/// Spend is settled when sent and released when refused.
 #[tokio::test]
 async fn spend_is_settled_when_sent_and_released_when_refused() {
     let e = need!();
@@ -361,6 +379,7 @@ async fn spend_is_settled_when_sent_and_released_when_refused() {
     assert_eq!(kinds, ["reserve", "settle", "release"]);
 }
 
+/// The janitor turns stale sends into unknown and late results are kept for the operator.
 #[tokio::test]
 async fn the_janitor_turns_stale_sends_into_unknown_and_late_results_are_kept_for_the_operator() {
     let e = need!();
@@ -413,6 +432,7 @@ async fn the_janitor_turns_stale_sends_into_unknown_and_late_results_are_kept_fo
     assert_eq!(status(&e.pool, id).await, "unknown");
 }
 
+/// Claims are exclusive.
 #[tokio::test]
 async fn claims_are_exclusive() {
     let e = need!();
@@ -432,6 +452,7 @@ async fn claims_are_exclusive() {
     assert!(q::next_due(&mut tx3).await.expect("claim").is_none(), "both are held");
 }
 
+/// Stops daily limits the stop switch and sandbox only outside production.
 #[tokio::test]
 async fn stops_daily_limits_the_stop_switch_and_sandbox_only_outside_production() {
     let e = need!();
@@ -477,6 +498,7 @@ async fn stops_daily_limits_the_stop_switch_and_sandbox_only_outside_production(
     assert_eq!(dev.tick().await.expect("tick"), Tick::Stopped(id5));
 }
 
+/// A missing credential fails without a call.
 #[tokio::test]
 async fn a_missing_credential_fails_without_a_call() {
     let e = need!();
@@ -492,6 +514,7 @@ async fn a_missing_credential_fails_without_a_call() {
     assert!((env_secrets())("DATABASE_URL").is_none());
 }
 
+/// Metrics alerts and instance limits.
 #[tokio::test]
 async fn metrics_alerts_and_instance_limits() {
     let e = need!();
@@ -542,7 +565,9 @@ async fn metrics_alerts_and_instance_limits() {
     assert_eq!(sent.len(), 1);
     let content = sent[0].1["content"].as_str().expect("content");
     assert!(content.contains("1 failed"), "{content}");
+    // The alert can ping nobody.
     assert_eq!(sent[0].1["allowed_mentions"], json!({"parse": []}));
+    // A second summary inside the interval is not sent.
     assert!(!alerts::maybe_send(&e.pool, &http, &a, &cfg).await.expect("alert"));
     assert_eq!(m.log.lock().expect("log").len(), 1);
 
@@ -561,16 +586,20 @@ async fn metrics_alerts_and_instance_limits() {
     let limits: Value =
         scalar(&e.pool, &format!("SELECT config -> 'instance_limits' FROM hub.platform_targets WHERE id = {mt}")).await;
     assert_eq!(limits["max_characters"], 11000);
+    // A second refresh inside the freshness window does nothing.
     assert_eq!(w.refresh_mastodon_limits().await.expect("refresh"), 0, "fresh limits are not fetched again");
 }
 
+/// Live rules.
 #[test]
 fn live_rules() {
     let off = WorkerConfig::default();
+    // The worker's own switch beats a live target.
     assert_eq!(live(&off, true, true), Err("the worker runs with PUBLISHING_LIVE off"));
     let on = live_cfg();
     assert_eq!(live(&on, false, true), Err("the target is not live"));
     assert_eq!(live(&on, true, false), Ok(()));
+    // Outside production only sandbox targets receive real sends.
     let dev = WorkerConfig { production: false, ..live_cfg() };
     assert!(live(&dev, true, false).is_err());
     assert_eq!(live(&dev, true, true), Ok(()));
@@ -578,6 +607,7 @@ fn live_rules() {
 
 // ── end to end: the admin API, the worker and the public feed ───────────────────────────────────────────
 
+/// End-to-end tests: the admin API, the worker and the public API against one database.
 mod e2e {
     use axum::body::Body;
     use axum::http::Request;
@@ -589,10 +619,14 @@ mod e2e {
 
     use super::*;
 
+    /// The token issuer in tests.
     const ISS: &str = "https://team.cloudflareaccess.com";
+    /// The test operator's subject.
     const ADMIN: &str = "operator";
+    /// The admin host's origin in tests.
     const ORIGIN: &str = "https://hub.example.org";
 
+    /// Send a request to a router and return the status and the JSON body.
     async fn call(r: &Router, method: &str, path: &str, body: Option<Value>) -> (StatusCode, Value) {
         let now = Utc::now().timestamp();
         let token = sign(
@@ -616,6 +650,7 @@ mod e2e {
         (status, serde_json::from_slice(&bytes).unwrap_or(Value::Null))
     }
 
+    /// A post goes from the admin api through the worker to the feed without sending anything.
     #[tokio::test]
     async fn a_post_goes_from_the_admin_api_through_the_worker_to_the_feed_without_sending_anything() {
         let e = need!();

@@ -19,44 +19,67 @@ use crate::extract::{Body, Query, nullable};
 
 // ── phases ──────────────────────────────────────────────────────────────────────────────────────────────
 
+/// The body of `POST /api/v1/phases`.
 #[derive(Deserialize, utoipa::ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct NewPhase {
+    /// The stable key.
     pub key: String,
+    /// Its position in the roadmap.
     pub sort_order: i32,
+    /// The name the operator sees.
     pub internal_name: String,
+    /// The description the operator sees.
     #[serde(default)]
     pub internal_description: String,
+    /// The name the public views show.
     pub public_name: String,
+    /// The description the public views show.
     #[serde(default)]
     pub public_description: String,
+    /// When the phase starts.
     #[serde(default)]
     pub window_start: Option<DateTime<Utc>>,
+    /// When the phase ends.
     #[serde(default)]
     pub window_end: Option<DateTime<Utc>>,
+    /// Whether people reading in a browser see it.
     #[serde(default)]
     pub visible_human: bool,
+    /// Whether the feeds for bots carry it.
     #[serde(default)]
     pub visible_bot: bool,
 }
 
+/// The body of `PATCH /api/v1/phases/{id}`; a field that is left out is unchanged.
 #[derive(Deserialize, Default, utoipa::ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PhasePatch {
+    /// A new key.
     pub key: Option<String>,
+    /// A new position.
     pub sort_order: Option<i32>,
+    /// A new internal name.
     pub internal_name: Option<String>,
+    /// A new internal description.
     pub internal_description: Option<String>,
+    /// A new public name.
     pub public_name: Option<String>,
+    /// A new public description.
     pub public_description: Option<String>,
+    /// A new start; `null` clears it.
     #[serde(default, deserialize_with = "nullable")]
     pub window_start: Option<Option<DateTime<Utc>>>,
+    /// A new end; `null` clears it.
     #[serde(default, deserialize_with = "nullable")]
     pub window_end: Option<Option<DateTime<Utc>>>,
+    /// Change who sees it in a browser.
     pub visible_human: Option<bool>,
+    /// Change whether bot feeds carry it.
     pub visible_bot: Option<bool>,
 }
 
+/// Check a phase's fields against the database's limits.
 fn check_phase(f: &PhaseFields) -> ApiResult<()> {
     key("key", &f.key)?;
     if f.sort_order < 1 {
@@ -74,16 +97,19 @@ fn check_phase(f: &PhaseFields) -> ApiResult<()> {
     Ok(())
 }
 
+/// `GET /api/v1/phases`: every phase in roadmap order.
 pub async fn list_phases(State(s): State<AdminState>) -> ApiResult<Json<Vec<Phase>>> {
     let mut c = s.db.acquire().await?;
     Ok(Json(phases::list(&mut c).await?))
 }
 
+/// `GET /api/v1/phases/{id}`: one phase.
 pub async fn get_phase(State(s): State<AdminState>, Path(id): Path<i64>) -> ApiResult<Json<Phase>> {
     let mut c = s.db.acquire().await?;
     Ok(Json(found(phases::get(&mut c, id).await?)?))
 }
 
+/// `POST /api/v1/phases`: create a phase; the change is audited.
 pub async fn create_phase(
     State(s): State<AdminState>,
     Extension(who): Extension<Identity>,
@@ -109,6 +135,7 @@ pub async fn create_phase(
     Ok((StatusCode::CREATED, Json(p)))
 }
 
+/// `PATCH /api/v1/phases/{id}`: change a phase; the change is audited.
 pub async fn patch_phase(
     State(s): State<AdminState>,
     Extension(who): Extension<Identity>,
@@ -157,73 +184,112 @@ pub async fn patch_phase(
 
 // ── items ───────────────────────────────────────────────────────────────────────────────────────────────
 
+/// The body of `POST /api/v1/items`.
 #[derive(Deserialize, utoipa::ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct NewItem {
+    /// The phase.
     pub phase_id: i64,
+    /// The stable key.
     pub key: String,
+    /// What kind of item it is.
     pub item_type: String,
+    /// The title the operator sees.
     pub internal_title: String,
+    /// The description the operator sees.
     #[serde(default)]
     pub internal_description: String,
+    /// The title the public views show.
     #[serde(default)]
     pub public_title: Option<String>,
+    /// The description the public views show.
     #[serde(default)]
     pub public_description: Option<String>,
+    /// Whether people reading in a browser see it.
     #[serde(default)]
     pub visible_human: bool,
+    /// Whether the feeds for bots carry it.
     #[serde(default)]
     pub visible_bot: bool,
+    /// The starting status (default `planned`).
     #[serde(default)]
     pub status: Option<String>,
+    /// When it is planned to start.
     #[serde(default)]
     pub planned_at: Option<DateTime<Utc>>,
+    /// When it is due.
     #[serde(default)]
     pub due_at: Option<DateTime<Utc>>,
+    /// The date the public sees.
     #[serde(default)]
     pub public_due_at: Option<DateTime<Utc>>,
 }
 
+/// The body of `PATCH /api/v1/items/{id}`; a field that is left out is unchanged.
 #[derive(Deserialize, Default, utoipa::ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ItemPatch {
+    /// Move it to another phase.
     pub phase_id: Option<i64>,
+    /// A new key.
     pub key: Option<String>,
+    /// A new kind.
     pub item_type: Option<String>,
+    /// A new internal title.
     pub internal_title: Option<String>,
+    /// A new internal description.
     pub internal_description: Option<String>,
+    /// A new public title; `null` clears it.
     #[serde(default, deserialize_with = "nullable")]
     pub public_title: Option<Option<String>>,
+    /// A new public description; `null` clears it.
     #[serde(default, deserialize_with = "nullable")]
     pub public_description: Option<Option<String>>,
+    /// Change who sees it in a browser.
     pub visible_human: Option<bool>,
+    /// Change whether bot feeds carry it.
     pub visible_bot: Option<bool>,
+    /// A new status.
     pub status: Option<String>,
+    /// A new planned date; `null` clears it.
     #[serde(default, deserialize_with = "nullable")]
     pub planned_at: Option<Option<DateTime<Utc>>>,
+    /// A new due date; `null` clears it.
     #[serde(default, deserialize_with = "nullable")]
     pub due_at: Option<Option<DateTime<Utc>>>,
+    /// A new public date; `null` clears it.
     #[serde(default, deserialize_with = "nullable")]
     pub public_due_at: Option<Option<DateTime<Utc>>>,
 }
 
+/// The query of `GET /api/v1/items`.
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ItemQuery {
+    /// The cursor from the previous page.
     pub cursor: Option<String>,
+    /// How many rows to return.
     pub limit: Option<i64>,
+    /// Only this phase.
     pub phase_id: Option<i64>,
+    /// Only this status.
     pub status: Option<String>,
+    /// Only this kind.
     pub item_type: Option<String>,
 }
 
+/// An item with its tasks and posts.
 #[derive(Serialize, utoipa::ToSchema)]
 pub struct ItemDetail {
+    /// The item.
     pub item: Item,
+    /// Its tasks.
     pub tasks: Vec<Task>,
+    /// Its posts.
     pub posts: Vec<Post>,
 }
 
+/// Check an item's fields against the database's limits and the rule that a visible item has public wording.
 fn check_item(f: &ItemFields) -> ApiResult<()> {
     key("key", &f.key)?;
     parse_enum::<ItemType>("item_type", &f.item_type)?;
@@ -242,7 +308,9 @@ fn check_item(f: &ItemFields) -> ApiResult<()> {
     Ok(())
 }
 
+/// `GET /api/v1/items`: a page of items.
 pub async fn list_items(State(s): State<AdminState>, Query(q): Query<ItemQuery>) -> ApiResult<Json<Page<Item>>> {
+    // A bad cursor is a 400.
     let page = PageRequest::new(q.cursor.as_deref(), q.limit).map_err(|e| ApiError::BadRequest(e.to_string()))?;
     let mut c = s.db.acquire().await?;
     Ok(Json(
@@ -251,6 +319,7 @@ pub async fn list_items(State(s): State<AdminState>, Query(q): Query<ItemQuery>)
     ))
 }
 
+/// `GET /api/v1/items/{id}`: an item with its tasks and posts.
 pub async fn get_item(State(s): State<AdminState>, Path(id): Path<i64>) -> ApiResult<Json<ItemDetail>> {
     let mut c = s.db.acquire().await?;
     let item = found(items::get(&mut c, id).await?)?;
@@ -260,6 +329,7 @@ pub async fn get_item(State(s): State<AdminState>, Path(id): Path<i64>) -> ApiRe
     Ok(Json(ItemDetail { item, tasks: t, posts: p }))
 }
 
+/// `POST /api/v1/items`: create an item; the change is audited.
 pub async fn create_item(
     State(s): State<AdminState>,
     Extension(who): Extension<Identity>,
@@ -280,6 +350,7 @@ pub async fn create_item(
         due_at: b.due_at,
         public_due_at: b.public_due_at,
     };
+    // Validated before the transaction starts, so a bad request costs no lock.
     check_item(&f)?;
     let mut tx = s.db.begin().await?;
     let i = items::insert(&mut tx, &f).await?;
@@ -288,6 +359,7 @@ pub async fn create_item(
     Ok((StatusCode::CREATED, Json(i)))
 }
 
+/// `PATCH /api/v1/items/{id}`: change an item; the change is audited.
 pub async fn patch_item(
     State(s): State<AdminState>,
     Extension(who): Extension<Identity>,

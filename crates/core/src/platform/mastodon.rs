@@ -35,10 +35,12 @@ pub fn base(external_ref: Option<&str>) -> Result<String, String> {
     Ok(r.to_owned())
 }
 
+/// The URL that creates a status on the instance.
 pub fn statuses_url(base: &str) -> String {
     format!("{base}/api/v1/statuses")
 }
 
+/// The URL of the instance's description, which carries its posting limits.
 pub fn instance_url(base: &str) -> String {
     format!("{base}/api/v2/instance")
 }
@@ -63,10 +65,13 @@ pub fn body(payload: &str, config: &Value) -> Value {
 /// An instance's posting limits.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct InstanceLimits {
+    /// The most characters a status may hold.
     pub max_characters: u64,
+    /// How many characters each link counts for.
     pub characters_reserved_per_url: u64,
 }
 
+/// Read the limits from an instance description; `None` when the body is not the expected shape or a limit is outside 1 to 1,000,000.
 pub fn parse_instance_limits(body: &str) -> Option<InstanceLimits> {
     let v: Value = serde_json::from_str(body).ok()?;
     let s = v.pointer("/configuration/statuses")?;
@@ -115,22 +120,27 @@ pub fn classify(r: &Reply, window: bool, now: DateTime<Utc>) -> Sent {
     }
 }
 
+/// Unit tests for this module.
 #[cfg(test)]
 mod tests {
     use super::*;
     use chrono::TimeZone;
 
+    /// A reply with no headers.
     fn reply(status: u16, body: &str) -> Reply {
         Reply { status, headers: vec![], body: body.into() }
     }
 
+    /// A time on a fixed day in October 2026.
     fn t(h: u32, m: u32) -> DateTime<Utc> {
         Utc.with_ymd_and_hms(2026, 10, 29, h, m, 0).single().expect("time")
     }
 
+    /// Bases and bodies.
     #[test]
     fn bases_and_bodies() {
         assert_eq!(base(Some("https://mastodon.social/")).as_deref(), Ok("https://mastodon.social"));
+        // No base, no scheme, a path after the host, and no host are all refused.
         for bad in [None, Some("m.example"), Some("https://m.example/@me"), Some("https://")] {
             assert!(base(bad).is_err(), "{bad:?}");
         }
@@ -139,6 +149,7 @@ mod tests {
             body("Hi", &json!({"visibility": "unlisted", "language": "en"})),
             json!({"status": "Hi", "visibility": "unlisted", "language": "en"})
         );
+        // `direct` is never used: a private message would not be an announcement.
         assert_eq!(body("Hi", &json!({"visibility": "direct"}))["visibility"], "public");
     }
 
@@ -150,16 +161,22 @@ mod tests {
             parse_instance_limits(b),
             Some(InstanceLimits { max_characters: 500, characters_reserved_per_url: 23 })
         );
+        // A description without the limits gives none, so the default limits apply.
         assert_eq!(parse_instance_limits(r#"{"configuration":{}}"#), None);
     }
 
+    /// The idempotency window.
     #[test]
     fn the_idempotency_window() {
+        // Inside the 45-minute window a repeat with the same key is safe.
         assert!(window_open(t(12, 0), t(12, 44)));
+        // Past the window the platform may have forgotten the key.
         assert!(!window_open(t(12, 0), t(12, 46)));
+        // A clock that went backwards counts as inside the window.
         assert!(window_open(t(12, 0), t(11, 59)));
     }
 
+    /// Replies.
     #[test]
     fn replies() {
         let ok = reply(
@@ -170,6 +187,7 @@ mod tests {
             classify(&ok, true, t(12, 0)),
             Sent::Posted { url_or_external_id: "https://m.example/@a/113".into() }
         );
+        // 422 is a validation refusal: the text is too long.
         let long = reply(422, r#"{"error":"Validation failed: Text character limit of 500 exceeded"}"#);
         assert_eq!(
             classify(&long, true, t(12, 0)),
@@ -178,6 +196,7 @@ mod tests {
                 validation: true
             }
         );
+        // 401 is the credential, not the content.
         let token = reply(401, r#"{"error":"The access token is invalid"}"#);
         assert!(matches!(classify(&token, true, t(12, 0)), Sent::Refused { validation: false, .. }));
         let limited = Reply {

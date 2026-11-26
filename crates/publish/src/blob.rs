@@ -20,19 +20,28 @@ use crate::net::{Failure, Http, Request};
 /// A blob that is stored.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StoredBlob {
+    /// The blob's id.
     pub blob_id: String,
     /// The Sui `Blob` object (absent when the blob was already certified).
     pub object_id: Option<String>,
     /// The epoch the storage ends at, as the publisher reports it.
     pub end_epoch: Option<u64>,
+    /// Whether the blob was already stored and certified, so nothing was bought.
     pub already_certified: bool,
 }
 
+/// Why a store failed.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum BlobError {
     /// The publisher answered with a refusal.
+    /// The publisher refused: its HTTP status and its reason.
     #[error("the publisher refused the blob (HTTP {status}): {reason}")]
-    Rejected { status: u16, reason: String },
+    Rejected {
+        /// The HTTP status.
+        status: u16,
+        /// The reason the publisher gave.
+        reason: String,
+    },
     /// No answer, or the connection was never made.
     #[error("the publisher could not be reached: {0}")]
     Unreachable(String),
@@ -52,6 +61,7 @@ pub fn is_blob_id(s: &str) -> bool {
     s.len() == 43 && s.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_')
 }
 
+/// Whether `s` is `0x` and 64 hex digits.
 fn is_object_id(s: &str) -> bool {
     s.len() == 66 && s.starts_with("0x") && s[2..].bytes().all(|b| b.is_ascii_hexdigit())
 }
@@ -114,8 +124,11 @@ pub fn claims(now_unix: i64, jti: &str, epochs: u32, size: usize) -> Value {
 
 /// The internal Walrus publisher.
 pub struct Publisher {
+    /// The HTTP client, limited to the publisher's host.
     http: Http,
+    /// The publisher's URL, without a trailing slash.
     base: String,
+    /// The key that signs the short-lived token, when the publisher checks one.
     secret: Option<Vec<u8>>,
 }
 
@@ -133,6 +146,7 @@ impl Publisher {
         Ok(Publisher { http: Http::internal(&host)?, base: base.trim_end_matches('/').to_owned(), secret })
     }
 
+    /// A publisher over a given client (tests use one that reaches a local mock server).
     #[doc(hidden)]
     pub fn with_client(http: Http, base: &str, jwt_secret: Option<&str>) -> Result<Publisher, String> {
         Ok(Publisher {
@@ -143,10 +157,12 @@ impl Publisher {
     }
 }
 
+/// The current Unix time in seconds.
 fn unix_now() -> i64 {
     SystemTime::now().duration_since(UNIX_EPOCH).map_or(0, |d| i64::try_from(d.as_secs()).unwrap_or(0))
 }
 
+/// A unique id for one token (random, or time and process id if the random source fails).
 fn jti() -> String {
     let mut b = [0u8; 16];
     if getrandom::fill(&mut b).is_err() {
@@ -156,11 +172,14 @@ fn jti() -> String {
 }
 
 impl BlobStore for Publisher {
+    /// Store `bytes` for `epochs` epochs through `PUT /v1/blobs`, with a short-lived token when a secret is configured.
     async fn put(&self, bytes: &[u8], epochs: u32) -> Result<StoredBlob, BlobError> {
         // `permanent=true` so the result does not depend on the publisher's default (its documentation contradicts itself).
+        // The URL carries no credential: the token goes in a header.
         let url = format!("{}/v1/blobs?epochs={epochs}&permanent=true", self.base);
         let mut req = Request::put_bytes(url, bytes.to_vec());
         if let Some(secret) = &self.secret {
+            // The token is bound to this store's epochs and size and lives for a minute.
             let token = jwt_hs256(secret, &claims(unix_now(), &jti(), epochs, bytes.len()));
             req = req.header("authorization", format!("Bearer {token}"));
         }
@@ -168,6 +187,7 @@ impl BlobStore for Publisher {
             Failure::NotSent(r) | Failure::Unknown(r) | Failure::Refused(r) => BlobError::Unreachable(r),
         })?;
         if !reply.is_success() {
+            // Keep only the start of the publisher's explanation.
             let reason = content_hub_core::delivery::clip(&reply.body, 300);
             return Err(BlobError::Rejected { status: reply.status, reason });
         }
@@ -175,12 +195,15 @@ impl BlobStore for Publisher {
     }
 }
 
+/// Unit tests for this module.
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    /// A syntactically valid blob id.
     const BLOB: &str = "Qc9aP0V6x3mYk2w1TnqL8sRZb4dEoFhJiUyXvCgA7MM";
 
+    /// The hs256 signature matches rfc 7515.
     #[test]
     fn the_hs256_signature_matches_rfc_7515() {
         // RFC 7515 appendix A.1: the HMAC over this signing input with this key.
@@ -192,6 +215,7 @@ mod tests {
         assert_eq!(URL_SAFE_NO_PAD.encode(tag.as_ref()), "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk");
     }
 
+    /// Tokens are compact hs256 with the exact claims.
     #[test]
     fn tokens_are_compact_hs256_with_the_exact_claims() {
         let c = claims(1_000, "abc", 30, 715);
@@ -209,6 +233,7 @@ mod tests {
         assert_ne!(jti(), jti());
     }
 
+    /// Secrets are hex when prefixed.
     #[test]
     fn secrets_are_hex_when_prefixed() {
         assert_eq!(jwt_secret_bytes("0x0aff").expect("hex"), vec![0x0a, 0xff]);
@@ -248,6 +273,7 @@ mod tests {
         assert!(is_blob_id(BLOB) && !is_blob_id("nope"));
     }
 
+    /// The publisher url must be a bare origin.
     #[test]
     fn the_publisher_url_must_be_a_bare_origin() {
         assert!(Publisher::new("http://walrus-storage-publisher.blockchain.svc:31415", Some("0x0a")).is_ok());

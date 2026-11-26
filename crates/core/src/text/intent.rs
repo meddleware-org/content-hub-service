@@ -6,6 +6,7 @@
 
 use std::collections::BTreeMap;
 
+/// Percent-encode `v` into `out`: everything except `A-Z a-z 0-9 - . _ ~` becomes `%XX` in upper-case hex.
 fn encode(v: &str, out: &mut String) {
     for b in v.bytes() {
         if b.is_ascii_alphanumeric() || matches!(b, b'-' | b'.' | b'_' | b'~') {
@@ -16,12 +17,16 @@ fn encode(v: &str, out: &mut String) {
     }
 }
 
+/// Why a link template could not be filled.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum IntentError {
+    /// The template has an unclosed or unknown placeholder.
     #[error("the template is malformed")]
     Malformed,
+    /// The `target_base` value is not an https URL without spaces.
     #[error("target_base must be an https URL without spaces")]
     BadBase,
+    /// The filled template is not an https URL.
     #[error("the result is not an https URL")]
     NotHttps,
 }
@@ -35,7 +40,9 @@ pub fn fill(template: &str, values: &BTreeMap<&str, &str>) -> Result<String, Int
         let after = &rest[open + 1..];
         let close = after.find('}').ok_or(IntentError::Malformed)?;
         let name = &after[..close];
+        // A placeholder with no value fills with nothing.
         let v = values.get(name).copied().unwrap_or("");
+        // The base is a URL part, not a value: it is checked and inserted as it is, and every other placeholder is percent-encoded.
         if name == "target_base" {
             if !v.starts_with("https://") || v.contains(char::is_whitespace) {
                 return Err(IntentError::BadBase);
@@ -47,13 +54,16 @@ pub fn fill(template: &str, values: &BTreeMap<&str, &str>) -> Result<String, Int
         rest = &after[close + 1..];
     }
     out.push_str(rest);
+    // Whatever the template and the values were, the result must be an https URL.
     if out.starts_with("https://") { Ok(out) } else { Err(IntentError::NotHttps) }
 }
 
+/// Unit tests for this module.
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    /// Values are encoded.
     #[test]
     fn values_are_encoded() {
         let v = BTreeMap::from([("text", "Hello & welcome #1"), ("url", "https://example.org/a?b=c")]);
@@ -63,6 +73,7 @@ mod tests {
         );
     }
 
+    /// Target base is validated.
     #[test]
     fn target_base_is_validated() {
         let ok = BTreeMap::from([("target_base", "https://forum.example.org/"), ("title", "T"), ("body", "B")]);

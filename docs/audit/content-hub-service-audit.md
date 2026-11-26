@@ -14,6 +14,9 @@ binary with the subcommands `admin`, `public`, `worker`, `migrate`, `seed`, `exp
 - AUDIT_TEMPLATE_WALRUS.md (2026-09-30) — stores the signed roadmap snapshot through a Walrus publisher (C8)
 - AUDIT_TEMPLATE_SUI_CLIENT.md (2026-10-08) — signs the snapshot with a Sui personal-message signature (C8)
 - AUDIT_TEMPLATE_OPS.md (2026-10-08) — the snapshot CronJob spends from a hot wallet on a real chain (C8)
+- **Added 2026-11-26 (Part B documentation pass):** AUDIT_TEMPLATE_DOCS.md (2026-11-20); AUDIT_TEMPLATE_RFC.md (2026-11-19), ●: HTTP caching, JWT, JSON Feed and RSS, the text and
+  signature encodings; AUDIT_TEMPLATE_IOP.md (2026-11-19), ●: the published API, the feeds and the snapshot, the dependencies; AUDIT_TEMPLATE_PRIV.md (2026-11-20), ●: the operators' identity
+  data, logs and third-party calls; AUDIT_TEMPLATE_CONF.md (2026-11-26), ●: the settings that can carry a credential.
 
 Not triggered: SUI (no Move code), SEAL, VUE, CF (no Worker), PX (forwards nothing), GO, SITE, HOST.
 
@@ -54,7 +57,7 @@ size-guarded); restore drills passed 2026-10-30 from the in-cluster set and from
 **Severity ceiling:** High — the service holds the operator's unreleased plans and posting credentials (by reference)
 and sends to public channels; a leak of internal data or a duplicate public post is its worst outcome
 **Status:** C6 — admin and public APIs, authentication, seed, text engine and the publishing worker reviewed
-(2026-10-29); the snapshot export is reviewed as it lands (C8)
+(2026-10-29); the snapshot export is reviewed as it lands (C8); Part B documentation pass 2026-11-26 — F21 (RESOLVED) and F22 (DEFERRED, FU-0205) added
 
 ---
 
@@ -358,6 +361,71 @@ address-only output.
 **Impact:** the alerts that exist so the operator tops the float up before the daily snapshot store fails could be silenced by a third party at the cost of publishing a coin type. The failure that follows is a missed daily export, which `ContentHubSnapshotStorageEnding` (storage ending in under 3 days) also catches — a second, later signal, so no spend or key is at risk. Not observed: the live address holds exactly the real SUI and WAL coins (read from the public GraphQL endpoint on 2026-11-05).
 **Remediation / evidence:** coins are matched by their full canonical type: SUI by `0x…02::sui::SUI` and WAL by the new `WATCH_WAL_TYPE` (the package differs per network; `canonical_coin_type` normalises the package address to 64 lower-case hex digits and refuses generics and other shapes); every other coin is ignored; sums use `checked_add` and an overflow is a failed check; the worker refuses to start with `WATCH_WALLETS` and no valid `WATCH_WAL_TYPE`, so the type cannot silently be missing. Tests: `a_coin_is_identified_by_its_full_type_not_its_name` (look-alike SUI and WAL coins with 10^18 balances are ignored; the real ones read 7 and 9; a short-form SUI type is the same coin; two entries summing past `u128::MAX` fail), `coin_types_are_canonicalised_strictly`, and the existing watch tests updated to the full types. The workspace overlay (`post-bootstrap/content-hub`) carries `WATCH_WAL_TYPE` (the testnet WAL type as the live address reports it).
 
+### Part B documentation pass (2026-11-26)
+
+Scope: every tracked file of the repository (the six crates, the migrations, the contract tests, the scripts, the workflows, the manifests and the documents; 240 files, 121 measured by the documentation standard's file measure, 4 excluded: two lockfiles, the licence text and the applied migration) read against the workspace's
+`docs/operations/DOCUMENTATION_STANDARD.md` and annotated (Part B Phase 1, the twenty-ninth repository, the fourth Rust one); the DOCS, RFC, IOP, PRIV and CONF lenses applied for the first time.
+Before editing: the baseline is the audit's last recorded figure; it was not re-run separately before the first edit. After: `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings` with `missing_docs` and `clippy::missing_docs_in_private_items` now **denied** in the workspace lints, and `cargo test --workspace` (202 passed, 0 failed, 0 ignored, against a PostgreSQL 18 with TLS started by `scripts/test-postgres.sh` under podman, so no database test skipped).
+The Rust diff is comment-only (compared with comment lines stripped) apart from five enum and struct variants whose fields were written out one per line so each can carry a doc comment, and the one new test below. The applied migration is untouched (its checksum covers its comments).
+**Not run here:** `cargo deny`, `cargo llvm-cov`, the image build and `scripts/smoke.sh`, and the client-contract job (they need Docker, the published client package or network access; the changes to those files are comments, and the two YAML workflows and the dependabot file parse).
+
+#### B.RFC-1 Standards inventory
+
+| Standard | Where | Evidence |
+| --- | --- | --- |
+| HTTP semantics (RFC 9110) and caching (RFC 9111) on the public routes: a strong `ETag` (a hash of the body), `If-None-Match` answered with `304` (a list and `*` are honoured), `Cache-Control`, and `X-Content-Type-Options: nosniff` | `crates/api/src/public.rs` | the ETag/304 assertions in `handler_tests.rs` |
+| JSON, RFC 8259, for every request and answer; timestamps in RFC 3339 (the feed, the Bluesky record, alerts) | `crates/api`, `crates/core/src/platform` | the public DTO key snapshots, the feed tests |
+| JSON Feed 1.1 and RSS 2.0 for the owned feed (the RSS dates are written in the RFC 2822 form, the successor of the RFC 822 format that RSS 2.0 names) | `crates/api/src/public.rs` | the feed assertions in `handler_tests.rs` |
+| JWT (RFC 7519) signed with RS256 (RFC 7518 §3.3), keys from a JWK set (RFC 7517); `none` and every other algorithm refused | `crates/api/src/auth/jwt.rs` | the forged-claims, bad-signature, unknown-key and `none` tests |
+| JWS HS256 (RFC 7515) for the token the Walrus publisher client sends | `crates/publish/src/blob.rs` | `the_hs256_signature_matches_rfc_7515`, which uses the RFC's appendix A.1 key and input |
+| OAuth 1.0a request signing (RFC 5849) for X, which the platform requires and which is disabled by default | `crates/core/src/platform/x.rs` | the signing tests |
+| URI percent-encoding, RFC 3986, for intent links and for the OAuth signature base string | `crates/core/src/text/intent.rs`, `x.rs` | the intent and signature tests |
+| The Sui personal-message signature over the canonical snapshot (Ed25519, RFC 8032, in Sui's serialised layout) | `crates/core/src/snapshot.rs` | the contract job verifies the fixture with `@mysten/sui` |
+| `robots.txt` (RFC 9309) and `llms.txt` on the machine host | `crates/api/src/public.rs` | the machine-file routes |
+| OpenAPI, generated from the route tables, for both processes | `crates/api/src/openapi.rs` | the test that every route of each table is described |
+| The platforms' own interfaces: Discord webhooks, the Telegram Bot API, Bluesky (AT Protocol `createRecord`), the Mastodon API, the X API v2 | `crates/core/src/platform`, `crates/publish` | the definitions record the date each was checked (`verified_at`); no live send has been made to Discord, Telegram, Bluesky, Mastodon or X |
+| OCI image and distribution specifications, Sigstore keyless signing, SPDX and CycloneDX SBOMs, SLSA provenance from BuildKit | `.github/workflows/docker-publish.yml`, `scripts/check-index.sh`, `check-sbom.sh` | the publish run, the two gate scripts and their tests |
+
+**B.RFC-2 Non-final standards:** none on a request path. `llms.txt` is a community convention, not a standard, and carries nothing the service relies on. **B.RFC-3 Deviations:** the error body is `{ "error", "message" }`, not RFC 9457 problem details; it is the contract of the published client package and changing it would break every consumer, so it is a recorded deviation, not a defect.
+The snapshot's canonical form (sorted keys, no whitespace, integers only; `docs/SNAPSHOT.md`) is this project's own and does not claim RFC 8785 (JCS) conformance.
+
+#### B.IOP Interoperability, portability and exit
+
+- **Portability and exit:** the hub holds the operator's own content, not other people's. The database is plain PostgreSQL, backed up daily with an encrypted offsite copy and restore-drilled (DB-M9, 2026-10-30). The public face (the owned feed in JSON Feed and RSS, and the roadmap) is readable without us, and the signed roadmap snapshot is a self-verifying document stored on Walrus. There is **no single documented export** of posts, targets and instances (F22, FU-0205); the seed schema round-trips phases, items and tasks only.
+- **Open API and compatible competition:** both route tables are published, versioned in the path (`/public/v1`, `/api/v1`) and described by OpenAPI; `@meddleware/content-hub-client` carries the same tables and the golden vectors, and the contract job proves the binary answers them. Nothing gives our own client special access. There is no written deprecation policy beyond the platform's rule that releases before mainnet are patch bumps with the changelog naming what broke.
+- **Dependencies (exit register):** Cloudflare Access (the admin sign-in; its replacement is Part F, ADR-0015/0016) and the Cloudflare tunnel, DNS and edge cache; Keto and the database tier (ours); the Walrus publisher and aggregator and the Sui GraphQL endpoint (the wallet watch); the target platforms (disabling a target is the exit, and the owned feed is the platform-independent home); quay.io, Docker Hub and the self-hosted registry; GitHub Actions, crates.io, npm, Sigstore, Trivy and Dependabot.
+- **Incentives:** no telemetry (`DO_NOT_TRACK=1` in the workflows), no ads, no tracking, no sale of data.
+
+#### B.PRIV Privacy honoured
+
+- **Browser storage:** none. The public routes set no cookie and the admin API sets none; a search of the crates finds no cookie handling. (The admin console's own browser storage belongs to `content-hub-ui`, outside this repository.)
+- **What is stored about people:** only the signed-in operators' identity-provider subject, display name (which can be their e-mail address) and first and last seen times, as `docs/PERSONAL_DATA.md` inventories, with a tested owner-run erasure path that pseudonymises the audit log. Visitors to the public routes are not recorded.
+- **Third-party requests:** the target platforms (only on a live send), the Walrus publisher, the Sui GraphQL endpoint, Keto, the Access key set, and the optional Discord alert webhook. Each sits behind the host rules in `publish::net` (https only, no non-public address, the client's own configured host for internal calls).
+- **Logs:** JSON on stdout; they never carry the database URL, tokens or post bodies (redaction by construction; the tests in the CONF section). A recorded request is stored with credentials replaced by `[redacted]`, and reply excerpts are scrubbed of the secret.
+
+#### B.CONF Configuration and values
+
+- **Configuration surface:** the environment only, parsed once at start-up in `crates/cli/src/main.rs` (the README lists every variable and default); the database settings in `crates/store/src/config.rs`. A bad value fails naming its key.
+- **Values that can carry a credential:** `DATABASE_URL` (a password), `ALERT_DISCORD_WEBHOOK_URL` (a token in the path), `WALRUS_PUBLISHER_JWT_SECRET`, `SNAPSHOT_SIGNER_SEED`, `SUI_GRAPHQL_URL`, `KETO_READ_URL` and `ACCESS_TEAM_DOMAIN` (an address may carry a key or a user name), and the platform credentials read by name (`PLATFORM_*`).
+- **Echo sweep (2026-11-26):** every `format!`, `#[error]` and `tracing` call that takes a configured or caller-supplied value was read. Held: `DatabaseSettings` redacts the password in `Debug` and its errors name the missing part or the refused parameter's **name**, never a value; the webhook parsers and the recorded requests print `[redacted]`; the HTTP client classifies a failure (`could not connect`, `timed out`, `could not be built`) and never prints the URL; Keto and Access failures answer with fixed text; `https()` and `required()` name the key only.
+  Echoed on purpose and not credentials: the **file path** in `cannot read ACCESS_JWKS_FILE <path>` and `cannot read <KEY> <path>` (the operator needs the path to fix a mount), and the values of `LISTEN_ADDR`, `DB_POOL_SIZE` and `CONTENT_HUB_ENVIRONMENT`. No credential-bearing value was found echoed, so no defect; the new test `a_rejected_url_is_never_repeated_in_the_error` pins the rule for the URL settings, beside the existing redaction tests.
+- **Duplicated literals (B.CONF-3):** the version in the workspace manifest only (the crates inherit it); the vectors file (checked against the published client in the contract job).
+- **Secrets apart from settings:** the credentials are environment variables of the worker from SOPS Secrets, never in the database (it holds only their names); examples and tests use `.example` hosts and fixed test keys.
+
+### F21 — Drift: no `CONTRIBUTING.md`, the doc lints off, most fields and variants undocumented
+**Severity:** Low   **Disposition:** RESOLVED (2026-11-26, unreleased)
+**Where:** the repository root had no `CONTRIBUTING.md`; the workspace lints did not require doc comments, and most struct fields, enum variants, private items, manifests, workflows and scripts had none.
+**Remediation / evidence:** `CONTRIBUTING.md` is written; `missing_docs` and `clippy::missing_docs_in_private_items` are denied in the workspace lints and clippy passes with `-D warnings`; every item, field and variant is documented and every file carries a header and line-level comments (`node scripts/check-docs.mjs --report content-hub-service` in the workspace: all measured files meet the standard). Applied migrations are excluded because their checksums include comments.
+
+### F22 — No documented full export of the hub's content
+**Severity:** Info   **Disposition:** DEFERRED (FU-0205)
+**Where:** the admin API and `schema/` (the seed schema).
+**Issue:** an operator can read every entity through the admin API and the database is open PostgreSQL, but there is no one documented way to take posts, targets, instances and attempts out in an open format, and the seed round-trips phases, items and tasks only.
+**Impact:** none today (single operator, working backups); it would matter to a successor operator or a second instance.
+**Remediation / evidence:** FU-0205 designs the export with the Link in Bio export (IOP B.IOP-1) so the two agree.
+
+---
+
 ## Section A — Invariant verification matrix
 
 | # | Invariant (plain statement) | Enforced / asserted at (`file:fn`) | Proven by (test / code-assert / cross-project) | Status |
@@ -582,3 +650,4 @@ ignored; contract tests 6/6 (routes, vectors, snapshot signature with `@mysten/s
 - 2026-10-30 — offsite backup live and restore-drilled (in-cluster and from the encrypted R2 set); DB-M9 holds. The drill script now asks for the offsite passphrase once.
 - 2026-10-30 — DB-M10: personal-data inventory and a tested erasure path (owner-run SQL, pseudonymises the audit log inside one transaction, verifies, rolls back otherwise). Found: `hub.users.display_name` can hold the e-mail address (the one-time-PIN login sends no name), contrary to the schema comment.
 - 2026-11-05 — delta review of 0.0.2 (`bcc2c5a`, released and deployed 2026-10-30; the 2026-10-30 entries recorded its release and the alert gates but nobody had read the new code). Read `crates/worker/src/watch.rs` (334 lines, the wallet watch), its CLI wiring and its tests. Held: the GraphQL variable is never spliced into the query text (a test asserts it), labels and addresses are validated strictly, exposition text is built from validated labels and fixed coin names (a hostile reply cannot inject a metric line), the checked HTTP client refuses private addresses (a test), a failed poll keeps the last good reading and the success timestamp stays old (`ContentHubWalletCheckStale`). **F20 (new, RESOLVED in the source):** coins were matched by the last type segment, so a look-alike coin sent to the public address could silence the balance alerts; overflow of a summed balance would have panicked the polling task. Fixed with full-type matching, the required `WATCH_WAL_TYPE`, checked sums and two new tests; I23 added. Ran: `cargo test --workspace --locked` with a pinned PostgreSQL 18 over TLS (`REQUIRE_TEST_DATABASE=1`) before the fix — 199 tests, 0 failed; after the fix the worker and CLI crates (clippy `-D warnings` clean, watch tests 7/7); `cargo fmt --check` and `cargo deny check` clean. Not re-run after the fix: the database-backed suites (the change touches no database code). The fix **ships in 0.0.3**: the worker refuses to start without `WATCH_WAL_TYPE`, so the overlay (`post-bootstrap/content-hub`: base deployment env, `overlays/default/config.env`, README) gained it in the same workspace commit and the image and the ConfigMap must roll out together (`apply.sh content-hub` applies both). Lens check: A11Y not triggered (no UI in this repository); RUST and DB rows unchanged; base re-cited to the 2026-11-01 registry (the base gained the A11Y code only). Counts: 1 more RESOLVED (F20) and invariant I23; earlier dispositions unchanged.
+- 2026-11-26 — Part B documentation pass and first application of the DOCS, RFC, IOP, PRIV and CONF lenses (above, "Part B documentation pass"). F21 (RESOLVED) and F22 (DEFERRED, FU-0205) added; the earlier dispositions are unchanged. Every tracked file annotated to the documentation standard; the doc lints denied; `CONTRIBUTING.md` added; one new test (`a_rejected_url_is_never_repeated_in_the_error`).

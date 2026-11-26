@@ -4,11 +4,15 @@
 //
 // The seed is a TEST key (32 bytes of 0x07): it signs nothing real and holds nothing. The fixture is checked in CI
 // against `@mysten/sui`'s `verifyPersonalMessageSignature` (tests/contract/snapshot.test.ts).
+/// The signed example snapshot, built with a test key, that the fixture generator writes and the test compares with the committed file.
 fn snapshot_fixture() -> serde_json::Value {
     use base64::Engine;
     use serde_json::json;
+    // A test key (32 bytes of 7): it signs nothing real.
     let seed = [7u8; 32];
+    // The signer's address is a function of the seed, so the fixture is reproducible.
     let signer = snap::Signer::from_seed(&seed).expect("test seed");
+    // A long, non-ASCII text, to cover multi-byte and length handling.
     let long = format!("Opens soon — café ☕ {}", "x".repeat(200));
     let doc = json!({
         "schema": snap::SCHEMA,

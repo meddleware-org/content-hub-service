@@ -1,4 +1,8 @@
+# The content hub's HTTP surfaces: the admin router and the public router. They run as two separate processes (the
+# public one holds a read-only database role), and both are built from this one crate so they share the route
+# tables, the error body and the OpenAPI documents.
 [package]
+# The crate's name, as the other crates and the binaries refer to it.
 name = "content-hub-api"
 description = "The content hub's HTTP surfaces: the admin router and the public router (separate processes)."
 version.workspace = true
@@ -6,11 +10,14 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
+# Inherited: the crate is never published to crates.io.
 publish.workspace = true
 
+# Lints, version, edition and licence come from the workspace manifest, so every crate is held to the same rules.
 [lints]
 workspace = true
 
+# Runtime dependencies are versioned once, in the workspace manifest.
 [dependencies]
 content-hub-core = { workspace = true }
 content-hub-store = { workspace = true }
@@ -33,10 +40,12 @@ thiserror = { workspace = true }
 url = { workspace = true }
 rustls = { workspace = true }
 
+# Off by default, so a release build never contains the test signing key.
 [features]
 # Exposes the test signing key (auth::jwt::testing) and the store's test harness to other crates' tests.
 testing = ["content-hub-store/testing"]
 
+# Test-only: the store's database harness, and a multi-threaded runtime for the async tests.
 [dev-dependencies]
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 content-hub-store = { workspace = true, features = ["testing"] }

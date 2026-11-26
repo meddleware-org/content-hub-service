@@ -18,11 +18,16 @@ use crate::auth::jwt::testing::{jwks, sign};
 use crate::auth::{AuthConfig, Authenticator, JwksSource, RoleSource};
 use crate::public::{self, PublicConfig, PublicState};
 
+/// The token issuer in tests.
 const ISS: &str = "https://team.cloudflareaccess.com";
+/// The token audience in tests.
 const AUD: &str = "aud-tag";
+/// The admin host's origin in tests.
 const ORIGIN: &str = "https://hub.example.org";
+/// The test operator's subject.
 const ADMIN: &str = "admin-subject";
 
+/// A signed token for a subject, valid for an hour.
 fn token(sub: &str) -> String {
     let now = chrono::Utc::now().timestamp();
     sign(
@@ -31,6 +36,7 @@ fn token(sub: &str) -> String {
     )
 }
 
+/// An authenticator with the given role and key sources.
 fn auth(roles: RoleSource, jwks_src: JwksSource) -> Arc<Authenticator> {
     Authenticator::new(AuthConfig {
         issuer: ISS.into(),
@@ -42,16 +48,19 @@ fn auth(roles: RoleSource, jwks_src: JwksSource) -> Arc<Authenticator> {
     .expect("auth")
 }
 
+/// An authenticator that knows the test key and treats the test operator as admin.
 fn static_auth() -> Arc<Authenticator> {
     auth(RoleSource::Static([ADMIN.to_owned()].into()), JwksSource::Static(jwks("k1")))
 }
 
+/// A migrated test database, the admin router and the public router over it.
 struct Env {
     db: TestDb,
     admin: Router,
     public: Router,
 }
 
+/// Create the environment with the given spend ceilings; `None` when no test database is configured.
 async fn env_with(ceilings: Ceilings) -> Option<Env> {
     let db = TestDb::migrated().await?;
     let mut w = db.conn(&db.writer).await;
@@ -65,10 +74,12 @@ async fn env_with(ceilings: Ceilings) -> Option<Env> {
     Some(Env { db, admin, public })
 }
 
+/// The environment with ceilings of zero.
 async fn env() -> Option<Env> {
     env_with(Ceilings::default()).await
 }
 
+/// Send a request to a router with optional credentials, origin and body, and return the status and the JSON body.
 async fn call(
     r: &Router,
     method: &str,
@@ -95,16 +106,19 @@ async fn call(
     (status, serde_json::from_slice(&bytes).unwrap_or(Value::Null))
 }
 
+/// An authenticated GET on the admin router.
 async fn get(e: &Env, path: &str) -> (StatusCode, Value) {
     call(&e.admin, "GET", path, None, Some(ADMIN), false).await
 }
 
+/// An authenticated write on the admin router, with the headers the CSRF check needs.
 async fn send(e: &Env, method: &str, path: &str, body: Value) -> (StatusCode, Value) {
     call(&e.admin, method, path, Some(body), Some(ADMIN), true).await
 }
 
 /// Every key path of a JSON document (`a[].b`), so a public response's shape is pinned exactly.
 fn key_paths(v: &Value) -> std::collections::BTreeSet<String> {
+    /// Collect every key path of a JSON value, so a test can compare the shape of a document.
     fn walk(v: &Value, at: &str, out: &mut std::collections::BTreeSet<String>) {
         match v {
             Value::Object(m) => {
@@ -123,10 +137,12 @@ fn key_paths(v: &Value) -> std::collections::BTreeSet<String> {
     out
 }
 
+/// A set of paths from a list.
 fn set(paths: &[&str]) -> std::collections::BTreeSet<String> {
     paths.iter().map(|p| (*p).to_owned()).collect()
 }
 
+/// The id of the platform definition with a code.
 async fn platform_id(e: &Env, code: &str) -> i64 {
     let (_, list) = get(e, "/api/v1/platforms").await;
     list.as_array().expect("list").iter().find(|p| p["code"] == code).and_then(|p| p["id"].as_i64()).expect("platform")
@@ -143,11 +159,14 @@ macro_rules! need {
 
 // ── authentication and authorisation ────────────────────────────────────────────────────────────────
 
+/// The auth matrix.
 #[tokio::test]
 async fn the_auth_matrix() {
     let e = need!();
+    // No token at all is unauthenticated; a valid token for a subject with no role is authenticated but forbidden.
     assert_eq!(call(&e.admin, "GET", "/api/v1/me", None, None, false).await.0, StatusCode::UNAUTHORIZED);
     assert_eq!(call(&e.admin, "GET", "/api/v1/me", None, Some("someone-else"), false).await.0, StatusCode::FORBIDDEN);
+    // The operator sees who the service thinks they are, so a wrong subject mapping shows up here.
     let (s, me) = get(&e, "/api/v1/me").await;
     assert_eq!(
         (s, me["subject"].as_str(), me["display_name"].as_str()),
@@ -169,9 +188,11 @@ async fn the_auth_matrix() {
     assert_eq!(e.admin.clone().oneshot(req).await.expect("ok").status(), StatusCode::UNAUTHORIZED);
 }
 
+/// Keto and jwks outages fail closed.
 #[tokio::test]
 async fn keto_and_jwks_outages_fail_closed() {
     let Some(db) = TestDb::migrated().await else { return };
+    // The role lookup points at a closed port: the service must refuse (503), never fall back to "allowed".
     let keto_down = admin::router(AdminState {
         db: db.pool(&db.writer, Access::ReadWrite),
         auth: auth(RoleSource::Keto("http://127.0.0.1:1".into()), JwksSource::Static(jwks("k1"))),
@@ -181,6 +202,7 @@ async fn keto_and_jwks_outages_fail_closed() {
         call(&keto_down, "GET", "/api/v1/me", None, Some(ADMIN), false).await.0,
         StatusCode::SERVICE_UNAVAILABLE
     );
+    // Same for the key set: a token cannot be verified without it, so the answer is 503, not a pass.
     let jwks_down = admin::router(AdminState {
         db: db.pool(&db.writer, Access::ReadWrite),
         auth: auth(
@@ -197,6 +219,7 @@ async fn keto_and_jwks_outages_fail_closed() {
 
 // ── roadmap ────────────────────────────────────────────────────────────────────────────────────────────
 
+/// Phases and items with validation and audit.
 #[tokio::test]
 async fn phases_and_items_with_validation_and_audit() {
     let e = need!();
@@ -236,6 +259,7 @@ async fn phases_and_items_with_validation_and_audit() {
         .0,
         StatusCode::UNPROCESSABLE_ENTITY
     );
+    // A partial update changes only the named fields; an explicit null clears a nullable one.
     let (s, p2) =
         send(&e, "PATCH", &format!("/api/v1/phases/{pid}"), json!({"public_description": "soon", "window_end": null}))
             .await;
@@ -247,12 +271,14 @@ async fn phases_and_items_with_validation_and_audit() {
                       "public_description": "Opens soon", "visible_human": true, "public_due_at": "2027-03-01T12:00:00Z"});
     let (s, i) = send(&e, "POST", "/api/v1/items", item).await;
     assert_eq!(s, StatusCode::CREATED, "{i}");
+    // Listing filters by phase and pages by `limit`; an unknown query key is a 400, not silently ignored.
     let (_, page) = get(&e, &format!("/api/v1/items?phase_id={pid}&limit=1")).await;
     assert_eq!(page["items"][0]["key"], "mint");
     assert_eq!(get(&e, "/api/v1/items?bogus=1").await.0, StatusCode::BAD_REQUEST);
     let (_, audit) = get(&e, "/api/v1/audit?entity_type=phase").await;
     let actions: Vec<&str> =
         audit["items"].as_array().expect("items").iter().filter_map(|a| a["action"].as_str()).collect();
+    // Newest first: every write above left one audit row, in the order it happened.
     assert_eq!(actions, vec!["phase.update", "phase.create"]);
 
     // The public roadmap shows the public wording and date only, with an ETag that revalidates.
@@ -327,9 +353,11 @@ async fn phases_and_items_with_validation_and_audit() {
 
 // ── tasks ──────────────────────────────────────────────────────────────────────────────────────────────
 
+/// Tasks follow the state machine and refuse cycles.
 #[tokio::test]
 async fn tasks_follow_the_state_machine_and_refuse_cycles() {
     let e = need!();
+    // Two tasks: B depends on A, so the state machine and the dependency rule can both be exercised.
     let (_, a) = send(&e, "POST", "/api/v1/tasks", json!({"key": "a", "task_type": "ENGINEERING", "title": "A"})).await;
     let a = a["task"]["id"].as_i64().expect("a");
     let (s, b) =
@@ -397,6 +425,7 @@ async fn tasks_follow_the_state_machine_and_refuse_cycles() {
 
 // ── posts, targets and publishing ─────────────────────────────────────────────────────────────────────
 
+/// Posts targets enqueue and operator moves.
 #[tokio::test]
 async fn posts_targets_enqueue_and_operator_moves() {
     let e = need!();
@@ -427,7 +456,9 @@ async fn posts_targets_enqueue_and_operator_moves() {
             .0,
         StatusCode::UNPROCESSABLE_ENTITY
     );
+    // One target per platform, all on the same community name; the feed and Discord are automatic, Reddit is manual, X is off.
     let mk = |def: i64, name: &str| json!({"platform_definition_id": def, "name": name, "enabled": true, "external_ref": "sui"});
+    // Created in order so the ids can be read back by position below.
     let mut ids = Vec::new();
     for (def, name) in [(feed, "main"), (discord, "announcements"), (reddit, "r-sui"), (x, "brand")] {
         let (s, t) = send(&e, "POST", "/api/v1/targets", mk(def, name)).await;
@@ -485,6 +516,7 @@ async fn posts_targets_enqueue_and_operator_moves() {
     assert_eq!(send(&e, "POST", &path, body).await.0, StatusCode::OK);
     let (path, body) = mv(manual, json!({"to": "cancelled"}));
     assert_eq!(send(&e, "POST", &path, body).await.0, StatusCode::CONFLICT);
+    // "sending" belongs to the worker alone: the operator asking for it is a conflict.
     let (path, body) = mv(made[0]["id"].as_i64().expect("queued"), json!({"to": "sending"}));
     assert_eq!(send(&e, "POST", &path, body).await.0, StatusCode::CONFLICT);
     let (path, body) = mv(manual, json!({"external_status": "in_review"}));
@@ -503,6 +535,7 @@ async fn used(e: &Env, def: i64) -> i64 {
         .unwrap_or(0)
 }
 
+/// Paid sends reserve spend and every requeue revalidates.
 #[tokio::test]
 async fn paid_sends_reserve_spend_and_every_requeue_revalidates() {
     let Some(e) =
@@ -513,6 +546,7 @@ async fn paid_sends_reserve_spend_and_every_requeue_revalidates() {
     let x = platform_id(&e, "X").await;
     assert_eq!(send(&e, "PATCH", &format!("/api/v1/platforms/{x}"), json!({"enabled": true})).await.0, StatusCode::OK);
     // Credential names carry the PLATFORM_ prefix; a live target needs one.
+    // Builds a target body for X, with extra keys merged in.
     let t = |extra: Value| {
         let mut b = json!({"platform_definition_id": x, "name": "brand", "enabled": true});
         b.as_object_mut().expect("obj").extend(extra.as_object().expect("obj").clone());
@@ -580,10 +614,12 @@ async fn paid_sends_reserve_spend_and_every_requeue_revalidates() {
     assert_eq!(used(&e, x).await, 15_000);
 }
 
+/// Hosts the worker calls and the stop switch.
 #[tokio::test]
 async fn hosts_the_worker_calls_and_the_stop_switch() {
     let e = need!();
     let m = platform_id(&e, "MASTODON").await;
+    // The Mastodon host is a caller-supplied address, so each unsafe form (missing, plain http, loopback, .local) must be refused.
     let mk = |ext: Value| json!({"platform_definition_id": m, "name": "m", "enabled": true, "external_ref": ext});
     for bad in
         [Value::Null, json!("http://mastodon.example"), json!("https://127.0.0.1"), json!("https://mastodon.local")]
@@ -599,6 +635,7 @@ async fn hosts_the_worker_calls_and_the_stop_switch() {
     let pds = json!({"platform_definition_id": b, "name": "b", "external_ref": "a.example", "config": {"pds": "https://10.0.0.5"}});
     assert_eq!(send(&e, "POST", "/api/v1/targets", pds).await.0, StatusCode::UNPROCESSABLE_ENTITY);
 
+    // The stop switch starts open, can be closed and read back, takes no extra fields, and leaves an audit row.
     assert_eq!(get(&e, "/api/v1/publishing").await.1, json!({"paused": false}));
     assert_eq!(send(&e, "PUT", "/api/v1/publishing", json!({"paused": true})).await.1, json!({"paused": true}));
     assert_eq!(get(&e, "/api/v1/publishing").await.1, json!({"paused": true}));
@@ -610,6 +647,7 @@ async fn hosts_the_worker_calls_and_the_stop_switch() {
     assert_eq!(audit["items"][0]["action"], "publishing.update");
 }
 
+/// The latest signed snapshot is public with a pinned shape.
 #[tokio::test]
 async fn the_latest_signed_snapshot_is_public_with_a_pinned_shape() {
     let e = need!();
@@ -619,6 +657,7 @@ async fn the_latest_signed_snapshot_is_public_with_a_pinned_shape() {
         (s0, &none["snapshot"], none["schema"].as_str()),
         (StatusCode::OK, &Value::Null, Some("content-hub.roadmap-snapshot/1"))
     );
+    // Snapshots are written by the worker, so the test inserts them straight into the table through the admin connection.
     let mut a = e.db.admin().await;
     sqlx::raw_sql(sqlx::AssertSqlSafe(format!(
         "INSERT INTO hub.snapshots (network, generated_at, schema_version, sha256, byte_size, signature, signer_address, blob_id, object_id, epochs, expires_at)
@@ -629,6 +668,7 @@ async fn the_latest_signed_snapshot_is_public_with_a_pinned_shape() {
     .execute(&mut a)
     .await
     .expect("snapshots");
+    // A second public router that knows the aggregator address, so the blob link can be built.
     let with_aggregator = public::router(PublicState {
         db: e.db.pool(&e.db.readonly, Access::ReadOnly),
         config: Arc::new(PublicConfig {
@@ -671,6 +711,7 @@ async fn the_latest_signed_snapshot_is_public_with_a_pinned_shape() {
     assert_eq!(call(&e.public, "GET", "/public/v1/snapshot?x=1", None, None, false).await.0, StatusCode::BAD_REQUEST);
 }
 
+/// Budgets respect the instance ceilings.
 #[tokio::test]
 async fn budgets_respect_the_instance_ceilings() {
     let e = need!();
@@ -687,14 +728,17 @@ async fn budgets_respect_the_instance_ceilings() {
         return;
     };
     let x = platform_id(&e, "X").await;
+    // Caps exactly at the ceilings are allowed.
     let ok = json!({"caps": [{"scope": "total", "monthly_limit_usd_micros": 5_000_000}, {"scope": "platform", "platform_definition_id": x, "monthly_limit_usd_micros": 2_000_000}]});
     let (s, b) = send(&e, "PUT", "/api/v1/budgets", ok).await;
     assert_eq!((s, b["caps"].as_array().map(Vec::len)), (StatusCode::OK, Some(2)));
+    // One micro-dollar over the per-platform ceiling is refused.
     let over =
         json!({"caps": [{"scope": "platform", "platform_definition_id": x, "monthly_limit_usd_micros": 2_000_001}]});
     assert_eq!(send(&e, "PUT", "/api/v1/budgets", over).await.0, StatusCode::UNPROCESSABLE_ENTITY);
 }
 
+/// The feed serves posted entries to the public.
 #[tokio::test]
 async fn the_feed_serves_posted_entries_to_the_public() {
     let e = need!();
@@ -724,6 +768,7 @@ async fn the_feed_serves_posted_entries_to_the_public() {
             "version",
         ])
     );
+    // The RSS form of the feed is served with its own media type.
     let res = e
         .public
         .clone()

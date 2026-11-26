@@ -7,14 +7,20 @@
 
 #![forbid(unsafe_code)]
 
+/// Connection settings.
 pub mod config;
+/// The store's error type.
 pub mod error;
+/// Running migrations and checking readiness.
 pub mod migrate;
+/// Every SQL statement, by table.
 pub mod repo;
 
+/// Throw-away databases for tests.
 #[cfg(any(test, feature = "testing"))]
 pub mod testdb;
 
+/// Unit tests for this module.
 #[cfg(test)]
 mod tests;
 

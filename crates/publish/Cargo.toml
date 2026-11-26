@@ -1,4 +1,7 @@
+# The platform publishers: one sender for each destination (Discord, Telegram, Bluesky, Mastodon, the owned feed, and
+# X behind a flag). The worker calls them; they hold no database access and decide nothing about what to send.
 [package]
+# The crate name that the other crates and the binaries use.
 name = "content-hub-publish"
 description = "Platform publishers of the content hub (Discord, Telegram, Bluesky, Mastodon, the owned feed; X behind a flag)."
 version.workspace = true
@@ -6,11 +9,14 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
+# Inherited: the crate is never published to crates.io.
 publish.workspace = true
 
+# Lints, version, edition and licence are inherited from the workspace manifest, so every crate is held to one set of rules.
 [lints]
 workspace = true
 
+# Runtime dependencies are versioned once, in the workspace manifest.
 [dependencies]
 content-hub-core = { workspace = true }
 reqwest = { workspace = true }
@@ -26,6 +32,7 @@ tracing = { workspace = true }
 url = { workspace = true }
 thiserror = { workspace = true }
 
+# Test-only dependencies.
 [dev-dependencies]
 tokio = { workspace = true, features = ["rt-multi-thread", "macros", "net", "time", "sync"] }
 axum = { workspace = true }

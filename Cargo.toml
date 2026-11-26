@@ -1,14 +1,21 @@
+# The content hub's Cargo workspace: six crates that build one binary, `content-hub`.
+# The crates: core (pure logic), store (all SQL), publish (platform senders), api (admin and public routers), worker
+# (the send loop and metrics) and cli (the binary). Dependencies point downwards only: cli on worker on api on the
+# rest, and core on nothing.
 [workspace]
 resolver = "3"
 members = ["crates/core", "crates/store", "crates/publish", "crates/api", "crates/worker", "crates/cli"]
 
+# Fields every crate inherits, so a release changes one version in one place.
 [workspace.package]
 version = "0.0.5"
 edition = "2024"
 # The dependency graph's floor (sqlx 0.9 needs 1.94; checked in CI by the `msrv` job).
 rust-version = "1.94"
+# The licence of every Meddleware repository.
 license = "0BSD"
 repository = "https://github.com/meddleware-org/content-hub-service"
+# Never published to crates.io: the hub ships as a container image.
 publish = false
 
 # Exact pins, as in the rest of the fleet: a version changes only through a reviewed Cargo.lock update.
@@ -57,19 +64,29 @@ serde-saphyr = "=2.0.0"
 proptest = "=1.12.0"
 tower-http = { version = "=0.7.1", default-features = false, features = ["timeout", "limit"] }
 
+# Lints every crate inherits through `[lints] workspace = true`.
 [workspace.lints.rust]
+# No `unsafe` anywhere in the workspace.
 unsafe_code = "deny"
+# Every item has a doc comment, private ones and fields included (the workspace documentation standard, D144).
+missing_docs = "deny"
 
 [workspace.lints.clippy]
+# The documentation standard's other half: private items need docs too.
+missing_docs_in_private_items = "deny"
+# Leftover debugging and unfinished code fail the build instead of reaching a release.
 dbg_macro = "deny"
 todo = "deny"
 unimplemented = "deny"
 
+# Settings for the binary that ships in the image.
 [profile.release]
 # Arithmetic overflow aborts instead of wrapping silently, even in release builds.
 overflow-checks = true
 # A panic stops the process (Kubernetes restarts the container with clean state).
 panic = "abort"
+# Link-time optimisation with one code-generation unit: slower to build, smaller and faster to run.
 lto = true
 codegen-units = 1
+# Debug symbols are not shipped.
 strip = true

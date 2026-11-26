@@ -24,6 +24,7 @@ pub fn is_public_ip(ip: IpAddr) -> bool {
     }
 }
 
+/// Whether an IPv4 address is a public, routable one (none of the private, shared, benchmarking, documentation, multicast or reserved ranges).
 fn is_public_v4(a: Ipv4Addr) -> bool {
     let o = a.octets();
     !(a.is_private()
@@ -39,6 +40,7 @@ fn is_public_v4(a: Ipv4Addr) -> bool {
         || o[0] >= 240)
 }
 
+/// Whether an IPv6 address is public (an IPv4-mapped one is judged as IPv4; loopback, unspecified, multicast, link-local, unique-local, documentation and NAT64 are not).
 fn is_public_v6(a: Ipv6Addr) -> bool {
     if let Some(v4) = a.to_ipv4_mapped() {
         return is_public_v4(v4);
@@ -53,51 +55,68 @@ fn is_public_v6(a: Ipv6Addr) -> bool {
         || (s[0] == 0x0064 && s[1] == 0xff9b))
 }
 
+/// Unit tests for this module.
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    /// Names.
     #[test]
     fn names() {
+        // A trailing dot (the root) does not make a public name private.
         for ok in ["example.org", "forum.example.org.", "mastodon.social"] {
             assert!(is_public_name(ok), "{ok}");
         }
         for bad in [
+            // Names that only resolve inside a network are refused, so a stored URL cannot point the server at its own network.
             "localhost",
             "intranet",
+            // `.local` is multicast DNS.
             "printer.local",
             "db.internal",
             "a.localhost",
+            // An in-cluster service name.
             "postgres.database.svc.cluster.local",
         ] {
             assert!(!is_public_name(bad), "{bad}");
         }
     }
 
+    /// Addresses.
     #[test]
     fn addresses() {
+        // Ordinary public addresses, IPv4 and IPv6.
         for ok in ["8.8.8.8", "1.1.1.1", "2606:4700::1", "162.159.135.232"] {
             assert!(is_public_ip(ok.parse().expect("ip")), "{ok}");
         }
         for bad in [
+            // Loopback.
             "127.0.0.1",
             "10.0.0.1",
             "172.16.5.4",
             "192.168.1.20",
+            // Link-local, where cloud metadata services live.
             "169.254.169.254",
+            // Carrier-grade NAT (shared address space).
             "100.64.0.1",
+            // The benchmarking range.
             "198.18.0.1",
             "0.0.0.0",
             "255.255.255.255",
+            // Reserved.
             "240.0.0.1",
             "224.0.0.1",
+            // Documentation.
             "192.0.2.1",
             "::1",
             "::",
             "fe80::1",
+            // Unique-local IPv6.
             "fd00::1",
             "2001:db8::1",
+            // NAT64 of 10.0.0.1: a private address in disguise.
             "64:ff9b::a00:1",
+            // An IPv4-mapped private address.
             "::ffff:10.0.0.1",
             "::ffff:127.0.0.1",
         ] {

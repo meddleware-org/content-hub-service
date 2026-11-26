@@ -1,4 +1,8 @@
+# The content hub's pure logic: the data model's enumerations, the state machines, text rendering and counting, and
+# the validation rules. Nothing in this crate does I/O, so every rule in it can be tested without a database or a
+# network, and the other crates depend on it rather than the reverse.
 [package]
+# The crate name that the other crates and the binaries use.
 name = "content-hub-core"
 description = "Pure content-hub logic: the data model's enumerations, state machines and validation (no I/O)."
 version.workspace = true
@@ -6,8 +10,10 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
+# Inherited: the crate is never published to crates.io.
 publish.workspace = true
 
+# Lints, version, edition and licence are inherited from the workspace manifest, so every crate is held to one set of rules.
 [lints]
 workspace = true
 
@@ -24,5 +30,6 @@ sha2 = { workspace = true }
 blake2 = { workspace = true }
 base64 = { workspace = true }
 
+# Test-only dependencies.
 [dev-dependencies]
 proptest = { workspace = true }

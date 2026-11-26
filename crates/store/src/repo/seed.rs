@@ -11,12 +11,18 @@ use sqlx::PgConnection;
 use super::{audit, items, phases, platforms, tasks};
 use crate::Result;
 
+/// What a seed import did.
 #[derive(Debug, Clone, Default, Serialize)]
 pub struct SeedReport {
+    /// Platform definitions inserted.
     pub definitions_inserted: usize,
+    /// Platform definitions refreshed.
     pub definitions_refreshed: usize,
+    /// Phases imported.
     pub phases: usize,
+    /// Items imported.
     pub items: usize,
+    /// Tasks imported.
     pub tasks: usize,
     /// Target names a task mentions that do not exist (yet) on its platforms.
     pub unmatched_targets: Vec<String>,
@@ -25,7 +31,9 @@ pub struct SeedReport {
 /// Insert or refresh every generic definition.
 pub async fn apply_definitions(tx: &mut PgConnection, file: &DefinitionsFile, report: &mut SeedReport) -> Result<()> {
     for d in &file.definitions {
+        // A map as a JSON value for a `jsonb` column.
         let s = |v: &BTreeMap<String, serde_json::Value>| serde_json::to_value(v).unwrap_or_default();
+        // Insert the definition, or refresh the fields the file owns; the result says which.
         let inserted = platforms::upsert_generic(
             tx,
             &platforms::SeedDefinition {
@@ -34,6 +42,7 @@ pub async fn apply_definitions(tx: &mut PgConnection, file: &DefinitionsFile, re
                 category: d.category.as_str(),
                 posting_mode: d.posting_mode.as_str(),
                 counting_method: d.counting_method.map(|m| m.as_str()),
+                // A limit too large for the column is dropped rather than wrapped.
                 primary_limit: d.primary_limit.and_then(|l| i32::try_from(l).ok()),
                 secondary_limits: s(&d.secondary_limits),
                 markup: d.markup.as_str(),
@@ -47,18 +56,23 @@ pub async fn apply_definitions(tx: &mut PgConnection, file: &DefinitionsFile, re
         )
         .await?;
         if inserted {
+            // A new definition.
             report.definitions_inserted += 1;
         } else {
+            // An existing definition updated from the file.
             report.definitions_refreshed += 1;
         }
     }
+    // Everything above ran in the caller's transaction, so a failure rolls the whole import back.
     Ok(())
 }
 
 /// Upsert a validated instance seed.
 pub async fn apply_seed(tx: &mut PgConnection, seed: &SeedFile, actor: &str, report: &mut SeedReport) -> Result<()> {
+    // Ids by key, so items can find their phase.
     let mut phase_ids = BTreeMap::new();
     for p in &seed.phases {
+        // A phase with the same key is updated, so re-running a seed is safe.
         let row = phases::upsert(
             tx,
             &phases::PhaseFields {
@@ -75,14 +89,18 @@ pub async fn apply_seed(tx: &mut PgConnection, seed: &SeedFile, actor: &str, rep
             },
         )
         .await?;
+        // Remember the phase's id for the items.
         phase_ids.insert(p.key.as_str(), row.id);
+        // Count it for the report.
         report.phases += 1;
     }
+    // Ids by key, so tasks can find their item.
     let mut item_ids = BTreeMap::new();
     for i in &seed.items {
         let row = items::upsert(
             tx,
             &items::ItemFields {
+                // The validated seed guarantees the phase exists.
                 phase_id: phase_ids[i.phase.as_str()],
                 key: i.key.clone(),
                 item_type: i.item_type.as_str().to_owned(),
@@ -99,7 +117,9 @@ pub async fn apply_seed(tx: &mut PgConnection, seed: &SeedFile, actor: &str, rep
             },
         )
         .await?;
+        // Remember the item's id for the tasks.
         item_ids.insert(i.key.as_str(), row.id);
+        // Count it for the report.
         report.items += 1;
     }
     let mut task_ids = BTreeMap::new();
@@ -107,6 +127,7 @@ pub async fn apply_seed(tx: &mut PgConnection, seed: &SeedFile, actor: &str, rep
         let row = tasks::upsert(
             tx,
             &tasks::TaskFields {
+                // The validated seed guarantees the item exists.
                 roadmap_item_id: t.item.as_deref().map(|k| item_ids[k]),
                 key: t.key.clone(),
                 task_type: t.task_type.as_str().to_owned(),
@@ -116,25 +137,35 @@ pub async fn apply_seed(tx: &mut PgConnection, seed: &SeedFile, actor: &str, rep
                 review_interval_days: t.review_interval_days,
                 next_review_at: t
                     .review_interval_days
+                    // A recurring task's first review is one interval from now.
                     .map(|d| chrono::Utc::now() + chrono::Duration::days(i64::from(d))),
+                // A seed never assigns a person.
                 assignee_subject: None,
                 entity_gated: t.entity_gated,
             },
             t.status.as_str(),
         )
         .await?;
+        // Remember the task's id for the dependencies.
         task_ids.insert(t.key.as_str(), row.id);
+        // Count it for the report.
         report.tasks += 1;
     }
     for t in &seed.tasks {
         let id = task_ids[t.key.as_str()];
+        // Dependencies are set after every task exists, so the order in the file does not matter.
         let deps: Vec<i64> = t.depends_on.iter().map(|d| task_ids[d.as_str()]).collect();
+        // Replace the task's dependencies with the file's.
         tasks::set_dependencies(tx, id, &deps).await?;
+        // The platform and optional target pairs of this task.
         let mut pairs = Vec::new();
         for code in &t.platforms {
+            // A code the database does not know is skipped (the validator reports it when it has the list).
             let Some(def) = platforms::id_by_code(tx, code).await? else { continue };
+            // A platform with no named target.
             pairs.push((def, None));
         }
+        // A named target is linked only when it exists on one of the task's platforms.
         for name in &t.targets {
             let found = sqlx::query!(
                 "SELECT id, platform_definition_id FROM hub.platform_targets WHERE name = $1 AND platform_definition_id = ANY($2::bigint[])",
@@ -145,14 +176,17 @@ pub async fn apply_seed(tx: &mut PgConnection, seed: &SeedFile, actor: &str, rep
             .await?;
             match found {
                 Some(r) => pairs.push((r.platform_definition_id, Some(r.id))),
+                // Report the ones that did not match instead of failing the import.
                 None => report.unmatched_targets.push(format!("{}: {name}", t.key)),
             }
         }
+        // Replace the task's platforms with the file's.
         tasks::set_platforms(tx, id, &pairs).await?;
     }
     audit::record(
         tx,
         actor,
+        // The import is audited as one entry, with the counts and not the content.
         "seed.import",
         "seed",
         None,

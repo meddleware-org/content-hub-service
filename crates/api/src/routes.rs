@@ -6,14 +6,20 @@
 /// The HTTP methods the tables use.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Method {
+    /// Read.
     Get,
+    /// Create or run.
     Post,
+    /// Replace.
     Put,
+    /// Change part.
     Patch,
+    /// Remove.
     Delete,
 }
 
 impl Method {
+    /// The method's name in HTTP.
     pub const fn as_str(self) -> &'static str {
         match self {
             Method::Get => "GET",
@@ -26,23 +32,31 @@ impl Method {
 
     /// Whether the method changes state (and so needs the CSRF check on the admin surface).
     pub const fn is_state_changing(self) -> bool {
+        // Only GET is safe; every other method changes state.
         !matches!(self, Method::Get)
     }
 }
 
-/// One route a process serves.
+/// One route a process serves. The tables below hold these, and the routers, the OpenAPI document and the docs
+/// table are all built from them.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Route {
+    /// The method.
     pub method: Method,
+    /// The path, with `{name}` for a parameter.
     pub path: &'static str,
     /// What it is for (rendered into the docs table).
     pub purpose: &'static str,
 }
 
+/// Make a route in a table. Keeps each row of the tables below on one line.
 const fn r(method: Method, path: &'static str, purpose: &'static str) -> Route {
+    // A `const fn`, so the tables are constants.
     Route { method, path, purpose }
 }
 
+// The method names are used bare in the tables, which keeps each row short enough to read at a glance.
+// They are imported here, after the helper, so the helper's own signature still names `Method` in full.
 use Method::{Delete, Get, Patch, Post, Put};
 
 /// Served by both processes, on their own ports and hosts.
@@ -63,7 +77,8 @@ pub const PUBLIC_ROUTES: &[Route] = &[
     r(Get, "/robots.txt", "crawler policy of the machine host"),
 ];
 
-/// The `admin` process (host hub., behind Cloudflare Access). Writer role.
+/// The `admin` process (host hub., behind Cloudflare Access). Writer role. Every route needs an admin identity; a
+/// test checks that each one answers and none is missing.
 pub const ADMIN_ROUTES: &[Route] = &[
     r(Get, "/api/v1/me", "the signed-in operator's display name"),
     r(Get, "/api/v1/openapi.json", "OpenAPI description of the admin routes"),
@@ -112,10 +127,12 @@ pub const ADMIN_ROUTES: &[Route] = &[
 /// The `worker` process (no ingress; the cluster scrapes and probes it), next to the probes.
 pub const WORKER_ROUTES: &[Route] = &[r(Get, "/metrics", "Prometheus metrics: queue, attempts, spend against caps")];
 
+/// Unit tests for this module.
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    /// Tables are disjoint and unique.
     #[test]
     fn tables_are_disjoint_and_unique() {
         let mut all: Vec<(Method, &str)> = PROBE_ROUTES
@@ -131,6 +148,7 @@ mod tests {
         assert_eq!(all.len(), n, "a route appears twice");
     }
 
+    /// Prefixes separate the processes.
     #[test]
     fn prefixes_separate_the_processes() {
         assert!(

@@ -19,29 +19,38 @@ use serde_json::{Value, json};
 use super::{Reply, by_status, reason};
 use crate::delivery::Sent;
 
+/// The path that creates a post.
 pub const CREATE_PATH: &str = "/2/tweets";
 
+/// The four OAuth 1.0a values an X application uses, read from the stored credential.
 #[derive(Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Credentials {
+    /// The application's API key.
     pub consumer_key: String,
+    /// The application's API secret.
     pub consumer_secret: String,
+    /// The account's access token.
     pub access_token: String,
+    /// The account's access token secret.
     pub access_token_secret: String,
 }
 
 impl std::fmt::Debug for Credentials {
+    /// Print only a marker: the credential is never shown.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str("Credentials { [redacted] }")
     }
 }
 
+/// Parse the stored credential (a JSON object with the four values); the error never repeats the credential.
 pub fn credentials(secret: &str) -> Result<Credentials, String> {
     serde_json::from_str(secret).map_err(|_| {
         "the X credential must be JSON with consumer_key, consumer_secret, access_token, access_token_secret".into()
     })
 }
 
+/// The create-post body.
 pub fn body(payload: &str) -> Value {
     json!({ "text": payload })
 }
@@ -118,6 +127,7 @@ pub fn classify(r: &Reply, now_epoch: i64) -> Sent {
     }
 }
 
+/// Unit tests for this module.
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -126,6 +136,7 @@ mod tests {
     /// HMAC-SHA1 of it with the example's signing key is `hCtSmYh+iHYCEqBWrE7C7hYmtUk=` (checked in the HTTP half).
     const DOC_BASE: &str = "POST&https%3A%2F%2Fapi.twitter.com%2F1.1%2Fstatuses%2Fupdate.json&include_entities%3Dtrue%26oauth_consumer_key%3Dxvz1evFS4wEEPTGEFPHBog%26oauth_nonce%3DkYjzVBB8Y0ZFabxSWbWovY3uYSQ2pTgmZeNu2VS4cg%26oauth_signature_method%3DHMAC-SHA1%26oauth_timestamp%3D1318622958%26oauth_token%3D370773112-GmHxMAgYyLbNEtIKZeRNFsMKPR9EyMZeS9weJAEb%26oauth_version%3D1.0%26status%3DHello%2520Ladies%2520%252B%2520Gentlemen%252C%2520a%2520signed%2520OAuth%2520request%2521";
 
+    /// The documented signature base string.
     #[test]
     fn the_documented_signature_base_string() {
         let params = [
@@ -146,6 +157,7 @@ mod tests {
         assert_eq!(encode("Ladies + Gentlemen!~"), "Ladies%20%2B%20Gentlemen%21~");
     }
 
+    /// Header and credentials.
     #[test]
     fn header_and_credentials() {
         let h = authorization(&[("oauth_nonce", "a b"), ("oauth_consumer_key", "k")], "s+/=");

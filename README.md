@@ -142,6 +142,11 @@ vectors.json      copy of @meddleware/content-hub-client's golden vectors (check
                   regenerate with `cargo run -p content-hub-core --example gen-vectors`)
 ```
 
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for how to build, test and propose a change, and [CHANGELOG.md](CHANGELOG.md) for what changed in each release.
+Security problems go to the address in [SECURITY.md](SECURITY.md).
+
 ## Licence
 
 0BSD — see [LICENSE](LICENSE).

@@ -20,11 +20,14 @@ const SPEND_LOCK: i64 = 0x0063_6862_7370_6e64; // "chbspnd"
 pub struct Applicable {
     /// `total`, `platform` or `target`.
     pub scope: &'static str,
+    /// The monthly limit, in millionths of a US dollar.
     pub limit_usd_micros: i64,
+    /// What has been used this month in the cap's scope.
     pub used_usd_micros: i64,
 }
 
 impl Applicable {
+    /// Whether `amount` more would still be within the limit.
     pub fn fits(&self, amount: i64) -> bool {
         self.used_usd_micros.saturating_add(amount) <= self.limit_usd_micros
     }
@@ -65,12 +68,16 @@ pub async fn applicable(
     )
     .fetch_one(&mut *conn)
     .await?;
+    // The total cap is the runtime row or the ceiling, and never above the ceiling.
     let total = rows.total_cap.unwrap_or(ceiling_total).min(ceiling_total);
+    // A platform cap is bounded by both the per-platform and the total ceiling.
     let platform = rows.platform_cap.unwrap_or(ceiling_per_platform).min(ceiling_per_platform).min(ceiling_total);
+    // The total and platform caps always apply.
     let mut out = vec![
         Applicable { scope: "total", limit_usd_micros: total, used_usd_micros: rows.used_total },
         Applicable { scope: "platform", limit_usd_micros: platform, used_usd_micros: rows.used_platform },
     ];
+    // A target cap applies only when the operator set one, and never above its platform's.
     if let Some(t) = rows.target_cap {
         out.push(Applicable { scope: "target", limit_usd_micros: t.min(platform), used_usd_micros: rows.used_target });
     }
@@ -84,13 +91,16 @@ pub async fn reserve(conn: &mut PgConnection, instance_id: i64, amount: i64, not
 
 /// Record `amount` as spent this month, and release the instance's outstanding reservations.
 pub async fn settle(conn: &mut PgConnection, instance_id: i64, amount: i64, note: &str) -> Result<()> {
+    // A settle of zero (a free send) records nothing but still releases the reservation.
     if amount > 0 {
         entry(conn, instance_id, "settle", amount, note).await?;
     }
+    // Settling always releases what is left of the reservation, so the reservation and the spend never both count.
     release(conn, instance_id, note).await?;
     Ok(())
 }
 
+/// Append one ledger row for an instance, with the platform and target taken from the instance.
 async fn entry(conn: &mut PgConnection, instance_id: i64, kind: &str, amount: i64, note: &str) -> Result<()> {
     sqlx::query!(
         r#"INSERT INTO hub.spend_ledger (period_month, platform_definition_id, platform_target_id, platform_instance_id, kind,
@@ -125,6 +135,7 @@ pub async fn release(conn: &mut PgConnection, instance_id: i64, note: &str) -> R
     )
     .fetch_all(conn)
     .await?;
+    // The amount released across the months.
     Ok(rows.iter().sum())
 }
 
@@ -156,5 +167,6 @@ pub async fn daily_post_limit(
     )
     .fetch_one(conn)
     .await?;
+    // Runtime rows can only lower the ceiling.
     Ok(lowest.map_or(ceiling, |l| l.min(ceiling)))
 }

@@ -26,11 +26,13 @@ env:
   DO_NOT_TRACK: "1"
   SQLX_OFFLINE: "true"
 
+# Four independent jobs: the checks, the declared minimum Rust version, the client contract, and the image.
 jobs:
   check:
     name: fmt, clippy, SQLx metadata, test, coverage, cargo-deny, SBOM gate
     runs-on: ubuntu-latest
     steps:
+      # Actions are pinned to a commit hash, with the version as a comment so Dependabot can update both.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # rustup ships on the runner image; using it directly leaves no third-party toolchain action to pin.
@@ -42,12 +44,15 @@ jobs:
           # Only save the cache on main-branch pushes to avoid saturating the cache upload bandwidth.
           save-if: ${{ github.ref == 'refs/heads/main' }}
 
+      # Formatting is checked, never rewritten, in CI.
       - name: Format check
         run: cargo fmt --check
 
+      # Warnings are errors, and the missing-documentation lints are part of that.
       - name: Clippy
         run: cargo clippy --workspace --all-targets --locked -- -D warnings
 
+      # The same script starts and stops the database in every job that needs one.
       - name: Start PostgreSQL (TLS)
         run: bash scripts/test-postgres.sh start
 
@@ -103,10 +108,12 @@ jobs:
       - name: Index gate tests
         run: bash scripts/tests/check-index-test.sh
 
+      # Always runs, so a failed step does not leave the database container behind.
       - name: Stop PostgreSQL
         if: always()
         run: bash scripts/test-postgres.sh stop
 
+  # The workspace declares the oldest Rust it supports; this job proves it still builds and passes on exactly that.
   msrv:
     name: MSRV (rust-version in Cargo.toml)
     runs-on: ubuntu-latest
@@ -128,6 +135,8 @@ jobs:
         if: always()
         run: bash scripts/test-postgres.sh stop
 
+  # The published client package is tested against the binary built here, so a route change that breaks the client
+  # fails the build.
   contract:
     name: Client contract (the published client against the binary)
     runs-on: ubuntu-latest
@@ -159,12 +168,14 @@ jobs:
           npm ci --ignore-scripts --no-audit --no-fund
           npm test
 
+  # The container image: scanned before and after it is built, and smoke-tested with each subcommand.
   image:
     name: Image (configuration scan, licence notices, build, scan, smoke test)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      # Scans the repository's configuration files (the Dockerfile and manifests) for misconfigurations and secrets.
       - name: Trivy configuration scan
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
@@ -183,6 +194,7 @@ jobs:
           test -s THIRD_PARTY_LICENSES.txt
           grep -q 'Apache License' THIRD_PARTY_LICENSES.txt
 
+      # Built for the scan and the smoke test only; the release workflow builds and pushes the real images.
       - name: Build (not pushed)
         run: docker build --tag content-hub-service:ci .
 

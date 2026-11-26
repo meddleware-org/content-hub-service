@@ -7,40 +7,66 @@ use uuid::Uuid;
 
 use crate::Result;
 
+/// One roadmap phase, with its internal and public wording.
 #[derive(Debug, Clone, Serialize, utoipa::ToSchema)]
 pub struct Phase {
+    /// The phase's id.
     pub id: i64,
+    /// The phase's stable key.
     pub key: String,
+    /// The id the public views show instead of the internal one.
     pub public_id: Uuid,
+    /// Its position in the roadmap.
     pub sort_order: i32,
+    /// The name the operator sees.
     pub internal_name: String,
+    /// The description the operator sees.
     pub internal_description: String,
+    /// The name the public views show.
     pub public_name: String,
+    /// The description the public views show.
     pub public_description: String,
+    /// When the phase starts, if dated.
     pub window_start: Option<DateTime<Utc>>,
+    /// When the phase ends, if dated.
     pub window_end: Option<DateTime<Utc>>,
+    /// Whether people reading in a browser see it.
     pub visible_human: bool,
+    /// Whether the feeds for bots carry it.
     pub visible_bot: bool,
+    /// When it was created.
     pub created_at: DateTime<Utc>,
+    /// When it last changed.
     pub updated_at: DateTime<Utc>,
 }
 
 /// The writable fields (create, or the full new state of an update).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PhaseFields {
+    /// The phase's stable key.
     pub key: String,
+    /// Its position in the roadmap.
     pub sort_order: i32,
+    /// The name the operator sees.
     pub internal_name: String,
+    /// The description the operator sees.
     pub internal_description: String,
+    /// The name the public views show.
     pub public_name: String,
+    /// The description the public views show.
     pub public_description: String,
+    /// When the phase starts.
     pub window_start: Option<DateTime<Utc>>,
+    /// When the phase ends.
     pub window_end: Option<DateTime<Utc>>,
+    /// Whether people reading in a browser see it.
     pub visible_human: bool,
+    /// Whether the feeds for bots carry it.
     pub visible_bot: bool,
 }
 
 impl From<&Phase> for PhaseFields {
+    /// The editable fields of a phase, taken from the stored one so a patch starts from the current state.
     fn from(p: &Phase) -> Self {
         PhaseFields {
             key: p.key.clone(),
@@ -57,20 +83,24 @@ impl From<&Phase> for PhaseFields {
     }
 }
 
+/// Every phase, in roadmap order.
 pub async fn list(conn: &mut PgConnection) -> Result<Vec<Phase>> {
     Ok(sqlx::query_as!(Phase, "SELECT * FROM hub.roadmap_phases ORDER BY sort_order, id").fetch_all(conn).await?)
 }
 
+/// One phase.
 pub async fn get(conn: &mut PgConnection, id: i64) -> Result<Option<Phase>> {
     Ok(sqlx::query_as!(Phase, "SELECT * FROM hub.roadmap_phases WHERE id = $1", id).fetch_optional(conn).await?)
 }
 
+/// One phase, locked for the rest of the transaction.
 pub async fn get_for_update(conn: &mut PgConnection, id: i64) -> Result<Option<Phase>> {
     Ok(sqlx::query_as!(Phase, "SELECT * FROM hub.roadmap_phases WHERE id = $1 FOR UPDATE", id)
         .fetch_optional(conn)
         .await?)
 }
 
+/// Insert a phase.
 pub async fn insert(conn: &mut PgConnection, f: &PhaseFields) -> Result<Phase> {
     Ok(sqlx::query_as!(
         Phase,
@@ -92,6 +122,7 @@ pub async fn insert(conn: &mut PgConnection, f: &PhaseFields) -> Result<Phase> {
     .await?)
 }
 
+/// Replace a phase's fields.
 pub async fn update(conn: &mut PgConnection, id: i64, f: &PhaseFields) -> Result<Phase> {
     Ok(sqlx::query_as!(
         Phase,

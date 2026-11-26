@@ -7,8 +7,10 @@ use content_hub_store::migrate::{self, Readiness, SCHEMA_VERSION};
 use serde::Serialize;
 use sqlx::PgPool;
 
+/// The liveness answer.
 #[derive(Serialize)]
 struct Health {
+    /// `ok`.
     status: &'static str,
 }
 
@@ -17,10 +19,14 @@ pub async fn healthz() -> Response {
     Json(Health { status: "ok" }).into_response()
 }
 
+/// The readiness answer.
 #[derive(Serialize)]
 struct Ready {
+    /// `ready` or the reason it is not.
     status: &'static str,
+    /// The newest applied migration.
     schema_version: Option<i64>,
+    /// The migration this build needs.
     required_schema_version: i64,
 }
 

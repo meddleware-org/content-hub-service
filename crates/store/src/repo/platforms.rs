@@ -7,39 +7,64 @@ use sqlx::PgConnection;
 
 use crate::Result;
 
+/// One platform definition: what the platform is, how a post reaches it, and its limits.
 #[derive(Debug, Clone, Serialize, utoipa::ToSchema)]
 pub struct PlatformDefinition {
+    /// The definition's id.
     pub id: i64,
+    /// The stable code that ties it to a publisher.
     pub code: String,
+    /// The name shown to the operator.
     pub name: String,
+    /// What kind of destination it is.
     pub category: String,
+    /// How a post is delivered.
     pub posting_mode: String,
+    /// How the platform counts characters.
     pub counting_method: Option<String>,
+    /// The main length limit.
     pub primary_limit: Option<i32>,
+    /// The further limits.
     pub secondary_limits: Value,
+    /// The markup the platform renders.
     pub markup: String,
+    /// Whether it takes media.
     pub supports_media: bool,
+    /// Its base URL.
     pub base_url: Option<String>,
+    /// The link templates for manual posting.
     pub url_templates: Value,
+    /// What a post costs.
     pub cost_model: Value,
+    /// Whether it is switched on.
     pub enabled: bool,
+    /// Free text for the operator.
     pub notes: String,
+    /// When it was created.
     pub created_at: DateTime<Utc>,
+    /// When it last changed.
     pub updated_at: DateTime<Utc>,
 }
 
 /// The editable fields.
 #[derive(Debug, Clone, PartialEq)]
 pub struct PlatformEdit {
+    /// The name shown to the operator.
     pub name: String,
+    /// The main length limit.
     pub primary_limit: Option<i32>,
+    /// The further limits.
     pub secondary_limits: Value,
+    /// The link templates for manual posting.
     pub url_templates: Value,
+    /// Whether it is switched on.
     pub enabled: bool,
+    /// Free text for the operator.
     pub notes: String,
 }
 
 impl From<&PlatformDefinition> for PlatformEdit {
+    /// The editable fields of a definition, taken from the stored one so a patch starts from the current state.
     fn from(d: &PlatformDefinition) -> Self {
         PlatformEdit {
             name: d.name.clone(),
@@ -52,30 +77,35 @@ impl From<&PlatformDefinition> for PlatformEdit {
     }
 }
 
+/// Every definition, by code.
 pub async fn list(conn: &mut PgConnection) -> Result<Vec<PlatformDefinition>> {
     Ok(sqlx::query_as!(PlatformDefinition, "SELECT * FROM hub.platform_definitions ORDER BY code")
         .fetch_all(conn)
         .await?)
 }
 
+/// One definition.
 pub async fn get(conn: &mut PgConnection, id: i64) -> Result<Option<PlatformDefinition>> {
     Ok(sqlx::query_as!(PlatformDefinition, "SELECT * FROM hub.platform_definitions WHERE id = $1", id)
         .fetch_optional(conn)
         .await?)
 }
 
+/// One definition, locked for the rest of the transaction.
 pub async fn get_for_update(conn: &mut PgConnection, id: i64) -> Result<Option<PlatformDefinition>> {
     Ok(sqlx::query_as!(PlatformDefinition, "SELECT * FROM hub.platform_definitions WHERE id = $1 FOR UPDATE", id)
         .fetch_optional(conn)
         .await?)
 }
 
+/// The id of the definition with this code.
 pub async fn id_by_code(conn: &mut PgConnection, code: &str) -> Result<Option<i64>> {
     Ok(sqlx::query_scalar!("SELECT id FROM hub.platform_definitions WHERE code = $1", code)
         .fetch_optional(conn)
         .await?)
 }
 
+/// Apply an edit and return the definition.
 pub async fn update(conn: &mut PgConnection, id: i64, e: &PlatformEdit) -> Result<PlatformDefinition> {
     Ok(sqlx::query_as!(
         PlatformDefinition,
@@ -97,19 +127,33 @@ pub async fn update(conn: &mut PgConnection, id: i64, e: &PlatformEdit) -> Resul
 /// The generic definition as seeded.
 #[derive(Debug, Clone)]
 pub struct SeedDefinition<'a> {
+    /// The stable code.
     pub code: &'a str,
+    /// The name.
     pub name: &'a str,
+    /// The category.
     pub category: &'a str,
+    /// How a post is delivered.
     pub posting_mode: &'a str,
+    /// How the platform counts characters.
     pub counting_method: Option<&'a str>,
+    /// The main limit.
     pub primary_limit: Option<i32>,
+    /// The further limits.
     pub secondary_limits: Value,
+    /// The markup.
     pub markup: &'a str,
+    /// Whether it takes media.
     pub supports_media: bool,
+    /// The base URL.
     pub base_url: Option<&'a str>,
+    /// The link templates.
     pub url_templates: Value,
+    /// What a post costs.
     pub cost_model: Value,
+    /// Whether it starts switched on.
     pub enabled: bool,
+    /// Free text for the operator.
     pub notes: &'a str,
 }
 

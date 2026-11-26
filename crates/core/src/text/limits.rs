@@ -10,11 +10,16 @@ use super::count::{CountRules, count};
 use super::render::render;
 use crate::model::{CountingMethod, Markup};
 
+/// The limits one target puts on a post.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Limits {
+    /// How the target counts characters.
     pub rules: CountRules,
+    /// The main limit, in the counting method's unit.
     pub primary: Option<u64>,
+    /// The limit on the encoded size in bytes.
     pub bytes: Option<u64>,
+    /// The limit on the title.
     pub title: Option<u64>,
 }
 
@@ -63,23 +68,33 @@ pub fn for_target(
             l.rules.url_weight = Some(u.min(u64::from(u32::MAX)) as u32);
         }
     }
+    // Without a counting method there is no limit; otherwise the limits are those the definition states.
     Some(l)
 }
 
 /// The result of checking one rendered post against a platform.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Check {
+    /// The text as it would be sent.
     pub payload: String,
+    /// Its length by the target's counting method.
     pub counted: u64,
+    /// The main limit, if there is one.
     pub limit: Option<u64>,
+    /// Its size in bytes.
     pub bytes: u64,
+    /// The byte limit, if there is one.
     pub byte_limit: Option<u64>,
+    /// The title's length, when the post has a title.
     pub title_counted: Option<u64>,
+    /// The title limit, if there is one.
     pub title_limit: Option<u64>,
 }
 
 impl Check {
+    /// Whether the post is within every limit that applies.
     pub fn fits(&self) -> bool {
+        // A missing limit never fails.
         self.limit.is_none_or(|l| self.counted <= l)
             && self.byte_limit.is_none_or(|l| self.bytes <= l)
             && match (self.title_counted, self.title_limit) {
@@ -104,10 +119,12 @@ pub fn check(markup: Markup, limits: &Limits, title: Option<&str>, body: &str) -
     }
 }
 
+/// Unit tests for this module.
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    /// Definitions map to limits.
     #[test]
     fn definitions_map_to_limits() {
         let sec: BTreeMap<String, serde_json::Value> = serde_json::from_str(
@@ -121,6 +138,7 @@ mod tests {
         assert!(Limits::from_definition(None, None, &sec).is_none());
     }
 
+    /// Targets adjust their platform limits.
     #[test]
     fn targets_adjust_their_platform_limits() {
         let sec: BTreeMap<String, serde_json::Value> =
@@ -135,6 +153,7 @@ mod tests {
         assert!(for_target(None, &sec, &inst).is_none());
     }
 
+    /// Telegram counts the visible text.
     #[test]
     fn telegram_counts_the_visible_text() {
         let l = Limits { rules: CountRules::plain(CountingMethod::Utf16), primary: Some(4), bytes: None, title: None };

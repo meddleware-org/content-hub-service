@@ -1,7 +1,15 @@
+# Files kept out of the Docker build context, so the image build is smaller, faster and cannot copy them in by accident.
+# Build output: the image builds the binary itself, so a local build must not be sent.
 target
+# Dependencies of the CI-only contract project; they are never part of the image.
 **/node_modules
+# Repository history is not needed to build.
 .git
+# CI workflows are not part of the image.
 .github
+# Markdown documents are not part of the image.
 *.md
+# Local environment files can hold credentials; none may enter the build context.
 .env*
+# Except the SQLx offline query metadata, which the build needs because it has no database to check queries against.
 !.sqlx

@@ -10,21 +10,27 @@ use sqlx::{PgPool, Row};
 
 use super::*;
 
+/// A blob store that records what it was given, or fails on request.
 struct FakeStore {
+    /// Every store call: the bytes and the epochs.
     puts: Mutex<Vec<(Vec<u8>, u32)>>,
+    /// When set, every store call fails as if the publisher were down.
     fail: bool,
 }
 
 impl FakeStore {
+    /// A store that succeeds, or one that always fails.
     fn new(fail: bool) -> FakeStore {
         FakeStore { puts: Mutex::new(Vec::new()), fail }
     }
+    /// How many blobs were stored.
     fn count(&self) -> usize {
         self.puts.lock().expect("puts").len()
     }
 }
 
 impl BlobStore for FakeStore {
+    /// Record the call and answer with a fixed blob, or fail.
     async fn put(&self, bytes: &[u8], epochs: u32) -> Result<StoredBlob, BlobError> {
         if self.fail {
             return Err(BlobError::Unreachable("down".into()));
@@ -39,11 +45,13 @@ impl BlobStore for FakeStore {
     }
 }
 
+/// A migrated test database with a roadmap that has a visible phase and a visible item.
 struct Env {
     _db: TestDb,
     pool: PgPool,
 }
 
+/// Create the database and seed a phase and an item whose internal text contains markers, so a test can prove they never reach the snapshot; `None` when no test database is configured.
 async fn env() -> Option<Env> {
     let db = TestDb::migrated().await?;
     let pool = db.pool(&db.writer, Access::ReadWrite);
@@ -68,27 +76,33 @@ macro_rules! need {
     };
 }
 
+/// A signer from a fixed test seed.
 fn signer() -> Signer {
     Signer::from_seed(&[7u8; 32]).expect("seed")
 }
 
+/// The testnet export settings.
 fn cfg() -> ExportConfig {
     ExportConfig::for_network("testnet").expect("cfg")
 }
 
+/// A time in November 2026.
 fn at(day: u32, hour: u32) -> DateTime<Utc> {
     chrono::TimeZone::with_ymd_and_hms(&Utc, 2026, 11, day, hour, 0, 0).single().expect("time")
 }
 
+/// How many snapshots are recorded.
 async fn rows(pool: &PgPool) -> i64 {
     sqlx::query("SELECT count(*) FROM hub.snapshots").fetch_one(pool).await.expect("count").get(0)
 }
 
+/// The first export signs stores and records the exact bytes.
 #[tokio::test]
 async fn the_first_export_signs_stores_and_records_the_exact_bytes() {
     let e = need!();
     let store = FakeStore::new(false);
     let s = signer();
+    // The first export has nothing to compare with, so it signs, stores and records.
     let out = export(&e.pool, &s, Some(&store), &cfg(), at(1, 12)).await.expect("export");
     let Outcome::Stored { sha256, signer: who, blob_id, expires_at, renewed } = out else { panic!("{out:?}") };
     assert!(!renewed);
@@ -121,6 +135,7 @@ async fn the_first_export_signs_stores_and_records_the_exact_bytes() {
     assert_eq!(audited, 1);
 }
 
+/// Internal wording never reaches the signed document.
 #[tokio::test]
 async fn internal_wording_never_reaches_the_signed_document() {
     let e = need!();
@@ -133,6 +148,7 @@ async fn internal_wording_never_reaches_the_signed_document() {
     assert!(text.contains("Opens soon"));
 }
 
+/// Unchanged data gives the same bytes and is not stored again.
 #[tokio::test]
 async fn unchanged_data_gives_the_same_bytes_and_is_not_stored_again() {
     let e = need!();
@@ -144,6 +160,7 @@ async fn unchanged_data_gives_the_same_bytes_and_is_not_stored_again() {
     assert_eq!((store.count(), rows(&e.pool).await), (1, 1));
 }
 
+/// A change waits for the minimum interval.
 #[tokio::test]
 async fn a_change_waits_for_the_minimum_interval() {
     let e = need!();
@@ -158,6 +175,7 @@ async fn a_change_waits_for_the_minimum_interval() {
     assert_eq!((store.count(), rows(&e.pool).await), (2, 2));
 }
 
+/// An unchanged snapshot is stored again before its storage ends.
 #[tokio::test]
 async fn an_unchanged_snapshot_is_stored_again_before_its_storage_ends() {
     let e = need!();
@@ -176,6 +194,7 @@ async fn an_unchanged_snapshot_is_stored_again_before_its_storage_ends() {
     assert_eq!(actions, ["snapshot.export", "snapshot.renew"]);
 }
 
+/// A failed store records nothing.
 #[tokio::test]
 async fn a_failed_store_records_nothing() {
     let e = need!();
@@ -188,6 +207,7 @@ async fn a_failed_store_records_nothing() {
     assert!(matches!(export(&e.pool, &signer(), Some(&ok), &cfg(), at(1, 13)).await, Ok(Outcome::Stored { .. })));
 }
 
+/// Without a store the snapshot is signed and recorded unstored.
 #[tokio::test]
 async fn without_a_store_the_snapshot_is_signed_and_recorded_unstored() {
     let e = need!();
@@ -205,6 +225,7 @@ async fn without_a_store_the_snapshot_is_signed_and_recorded_unstored() {
     ));
 }
 
+/// Two exports do not run at once.
 #[tokio::test]
 async fn two_exports_do_not_run_at_once() {
     let e = need!();
@@ -217,6 +238,7 @@ async fn two_exports_do_not_run_at_once() {
     assert!(matches!(export(&e.pool, &signer(), Some(&store), &cfg(), at(1, 12)).await, Ok(Outcome::Stored { .. })));
 }
 
+/// Defaults per network.
 #[test]
 fn defaults_per_network() {
     let t = ExportConfig::for_network("testnet").expect("t");

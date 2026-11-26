@@ -13,7 +13,9 @@
 
 #![forbid(unsafe_code)]
 
+/// Storing blobs on Walrus through the internal publisher.
 pub mod blob;
+/// The HTTP client and its host rules.
 pub mod net;
 
 use base64::Engine;
@@ -28,27 +30,38 @@ pub use net::{Failure, Http, Request};
 /// Everything one send needs. The worker resolves the credential from the environment by the target's `secret_ref`.
 #[derive(Debug, Clone, Copy)]
 pub struct Context<'a> {
+    /// Which publisher to use.
     pub kind: Kind,
     /// The definition's `base_url` (e.g. `https://discord.com`, `https://api.telegram.org`).
     pub base_url: Option<&'a str>,
+    /// The target's reference on the platform (a channel, a handle).
     pub external_ref: Option<&'a str>,
+    /// The target's configuration.
     pub config: &'a Value,
     /// The credential's value (never logged, stored or returned).
     pub secret: Option<&'a str>,
     /// Discord only: the crosspost bot token, when the target asks for crossposting.
     pub crosspost_secret: Option<&'a str>,
+    /// The title (some platforms ignore it).
     pub title: &'a str,
+    /// The body, already rendered for the platform.
     pub body: &'a str,
+    /// The post's public id.
     pub post_public_id: Uuid,
+    /// The key that makes a repeated send safe where the platform honours it.
     pub idempotency_key: Uuid,
+    /// When the first attempt was made.
     pub first_attempt_at: DateTime<Utc>,
+    /// The current time.
     pub now: DateTime<Utc>,
 }
 
 /// What a send produced, for the attempt record.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Report {
+    /// How the platform classified the send.
     pub sent: Sent,
+    /// The HTTP status, if there was an answer.
     pub http_status: Option<u16>,
     /// At most 500 characters of the last reply, scrubbed of the credential.
     pub excerpt: Option<String>,
@@ -56,10 +69,12 @@ pub struct Report {
     pub request: Value,
 }
 
+/// A report for a send that was refused before anything went out.
 fn refused(why: impl Into<String>, request: Value) -> Report {
     Report { sent: Sent::Refused { reason: why.into(), validation: false }, http_status: None, excerpt: None, request }
 }
 
+/// The reason given when the target's credential is not in the environment.
 fn missing_secret() -> String {
     "the target's credential variable is not set in the worker's environment".to_owned()
 }
@@ -68,12 +83,14 @@ fn missing_secret() -> String {
 pub fn dry_run(ctx: &Context<'_>) -> Result<Value, String> {
     let r = match ctx.kind {
         Kind::Feed => {
+            // The feed needs no external call: publishing makes the post appear in the hub's own feeds.
             json!({ "feed": "the post appears in the owned feeds", "id": format!("urn:uuid:{}", ctx.post_public_id) })
         }
         Kind::Discord => {
             let base = ctx.base_url.ok_or("the platform has no base_url")?;
             let url = match ctx.secret {
                 Some(s) => discord::redacted_url(&discord::webhook_url(base, s)?),
+                // Without a credential the URL is a placeholder, so a dry run still shows the shape.
                 None => "[the webhook URL from the target's credential variable]".to_owned(),
             };
             let body = discord::body(discord::Mode::from_config(ctx.config), ctx.title, ctx.body, ctx.config);
@@ -92,7 +109,9 @@ pub fn dry_run(ctx: &Context<'_>) -> Result<Value, String> {
                 .filter(|s| !s.trim().is_empty())
                 .ok_or("external_ref must be the account's handle or DID")?;
             let rkey = bluesky_rkey(ctx);
+            // Bluesky takes two calls: a session, then the record.
             json!({ "steps": [
+                // The password is redacted in what is stored.
                 { "method": "POST", "url": bluesky::session_url(&pds), "body": { "identifier": id, "password": "[redacted]" } },
                 { "method": "POST", "url": bluesky::create_record_url(&pds), "headers": { "authorization": "Bearer [redacted]" },
                   "body": bluesky::record_body("[the account's DID]", &rkey, ctx.body, &rfc3339(ctx.now), ctx.config) },
@@ -101,12 +120,14 @@ pub fn dry_run(ctx: &Context<'_>) -> Result<Value, String> {
         Kind::Mastodon => {
             let base = mastodon::base(ctx.external_ref)?;
             json!({ "method": "POST", "url": mastodon::statuses_url(&base),
+                    // The key is not secret, and it is what makes a repeat safe.
                     "headers": { "authorization": "Bearer [redacted]", "idempotency-key": ctx.idempotency_key.to_string() },
                     "body": mastodon::body(ctx.body, ctx.config) })
         }
         Kind::X => {
             let base = ctx.base_url.ok_or("the platform has no base_url")?;
             json!({ "method": "POST", "url": format!("{}{}", base.trim_end_matches('/'), x::CREATE_PATH),
+                    // The OAuth signature is computed at send time and never stored.
                     "headers": { "authorization": "OAuth [redacted]" }, "body": x::body(ctx.body) })
         }
     };
@@ -130,6 +151,7 @@ pub async fn send(http: &Http, ctx: &Context<'_>) -> Report {
     }
 }
 
+/// A report from a reply, with the credential scrubbed out of the outcome and the excerpt.
 fn report(r: &Reply, sent: Sent, secret: Option<&str>, request: Value) -> Report {
     Report {
         sent: scrub_sent(sent, secret),
@@ -139,12 +161,16 @@ fn report(r: &Reply, sent: Sent, secret: Option<&str>, request: Value) -> Report
     }
 }
 
+/// A time as RFC 3339 with milliseconds and `Z`.
 fn rfc3339(t: DateTime<Utc>) -> String {
     t.to_rfc3339_opts(SecondsFormat::Millis, true)
 }
 
+/// Post to a Discord webhook.
 async fn send_discord(http: &Http, ctx: &Context<'_>) -> Report {
+    // The redacted request is built first, so every outcome, failure included, records what was attempted.
     let request = dry_run(ctx).unwrap_or(Value::Null);
+    // Without a base address or a credential nothing is sent.
     let (Some(base), Some(secret)) = (ctx.base_url, ctx.secret) else { return refused(missing_secret(), request) };
     let url = match discord::webhook_url(base, secret) {
         Ok(u) => u,
@@ -153,11 +179,13 @@ async fn send_discord(http: &Http, ctx: &Context<'_>) -> Report {
     let body = discord::body(discord::Mode::from_config(ctx.config), ctx.title, ctx.body, ctx.config);
     let reply = match http.send(Request::post(url, body)).await {
         Ok(r) => r,
+        // A transport failure is classified by whether the request could have been sent.
         Err(f) => return Report { sent: f.to_sent(), http_status: None, excerpt: None, request },
     };
     let sent = discord::classify(&reply, ctx.config);
     // Best effort: publish an announcement-channel message to following servers. The post already went out, so a
     // failure here never changes the outcome; it is logged.
+    // Crossposting happens only after a successful post and only when a bot token is configured.
     if let (Sent::Posted { .. }, Some(bot)) = (&sent, ctx.crosspost_secret)
         && let Some((channel, id)) = discord::created(&reply)
     {
@@ -169,12 +197,15 @@ async fn send_discord(http: &Http, ctx: &Context<'_>) -> Report {
             Err(f) => tracing::warn!(failure = ?f, "crosspost failed"),
         }
     }
+    // The webhook URL is the credential, so it is scrubbed from the stored outcome and excerpt.
     report(&reply, sent, Some(secret), request)
 }
 
+/// Post to a Telegram channel.
 async fn send_telegram(http: &Http, ctx: &Context<'_>) -> Report {
     let request = dry_run(ctx).unwrap_or(Value::Null);
     let (Some(base), Some(token)) = (ctx.base_url, ctx.secret) else { return refused(missing_secret(), request) };
+    // A value that is not shaped like a bot token is refused before it is put into a URL.
     if !telegram::is_token(token) {
         return refused("the credential is not a Telegram bot token", request);
     }
@@ -190,6 +221,7 @@ async fn send_telegram(http: &Http, ctx: &Context<'_>) -> Report {
     }
 }
 
+/// The PDS to use: `config.pds`, else the definition's base URL; it must be an http(s) URL.
 fn bluesky_pds(ctx: &Context<'_>) -> Result<String, String> {
     let pds = ctx.config.get("pds").and_then(Value::as_str).or(ctx.base_url).ok_or("no PDS: set config.pds")?;
     if !pds.starts_with("https://") && !pds.starts_with("http://") {
@@ -198,16 +230,19 @@ fn bluesky_pds(ctx: &Context<'_>) -> Result<String, String> {
     Ok(pds.trim_end_matches('/').to_owned())
 }
 
+/// The record key for a Bluesky post, derived from the first attempt's time and the idempotency key so a retry reuses it.
 fn bluesky_rkey(ctx: &Context<'_>) -> String {
     let micros = u64::try_from(ctx.first_attempt_at.timestamp_micros()).unwrap_or(0);
     bluesky::rkey(micros, ctx.idempotency_key.as_bytes())
 }
 
+/// Post to Bluesky: create a session, then a record.
 async fn send_bluesky(http: &Http, ctx: &Context<'_>) -> Report {
     let request = dry_run(ctx).unwrap_or(Value::Null);
     let Some(password) = ctx.secret else { return refused(missing_secret(), request) };
     let (pds, id) = match (bluesky_pds(ctx), ctx.external_ref.filter(|s| !s.trim().is_empty())) {
         (Ok(p), Some(i)) => (p, i.trim()),
+        // A bad PDS address is a refusal.
         (Err(e), _) => return refused(e, request),
         (_, None) => return refused("external_ref must be the account's handle or DID", request),
     };
@@ -218,6 +253,7 @@ async fn send_bluesky(http: &Http, ctx: &Context<'_>) -> Report {
             Ok(s) => s,
             Err(sent) => return report(&reply, sent, Some(password), request),
         },
+        // Nothing has been posted yet, so even an unclear failure here is safe to retry.
         Err(f) => return Report { sent: f.before_posting(), http_status: None, excerpt: None, request },
     };
     // 2. Write the record, under a key fixed for this instance.
@@ -229,6 +265,7 @@ async fn send_bluesky(http: &Http, ctx: &Context<'_>) -> Report {
         Ok(reply) => {
             let sent = bluesky::classify_record(&reply, &session.did, &rkey);
             let mut rep = report(&reply, sent, Some(password), request);
+            // The session token is a credential too: scrub it from the excerpt and the outcome.
             rep.excerpt = rep.excerpt.map(|e| e.replace(&session.access_jwt, "[redacted]"));
             rep.sent = scrub_sent(rep.sent, Some(&session.access_jwt));
             rep
@@ -237,6 +274,7 @@ async fn send_bluesky(http: &Http, ctx: &Context<'_>) -> Report {
     }
 }
 
+/// Post to Mastodon with an `Idempotency-Key`, so a repeat inside the idempotency window cannot post twice.
 async fn send_mastodon(http: &Http, ctx: &Context<'_>) -> Report {
     let request = dry_run(ctx).unwrap_or(Value::Null);
     let Some(token) = ctx.secret else { return refused(missing_secret(), request) };
@@ -244,9 +282,11 @@ async fn send_mastodon(http: &Http, ctx: &Context<'_>) -> Report {
         Ok(b) => b,
         Err(e) => return refused(e, request),
     };
+    // Whether a repeat with the same key is still safe.
     let window = mastodon::window_open(ctx.first_attempt_at, ctx.now);
     let r = Request::post(mastodon::statuses_url(&base), mastodon::body(ctx.body, ctx.config))
         .header("authorization", format!("Bearer {token}"))
+        // The same key on every attempt of an instance.
         .header("idempotency-key", ctx.idempotency_key.to_string());
     match http.send(r).await {
         Ok(reply) => report(&reply, mastodon::classify(&reply, window, ctx.now), Some(token), request),
@@ -280,6 +320,7 @@ pub fn oauth1_signature(key: &str, base: &str) -> String {
     base64::engine::general_purpose::STANDARD.encode(ring::hmac::sign(&k, base.as_bytes()).as_ref())
 }
 
+/// A random OAuth nonce (48 hex digits, or a UUID if the random source fails).
 fn nonce() -> String {
     let mut b = [0u8; 24];
     if getrandom::fill(&mut b).is_err() {
@@ -288,6 +329,7 @@ fn nonce() -> String {
     b.iter().map(|x| format!("{x:02x}")).collect()
 }
 
+/// Post to X with an OAuth 1.0a signature.
 async fn send_x(http: &Http, ctx: &Context<'_>) -> Report {
     let request = dry_run(ctx).unwrap_or(Value::Null);
     let (Some(base), Some(secret)) = (ctx.base_url, ctx.secret) else { return refused(missing_secret(), request) };
@@ -309,5 +351,6 @@ async fn send_x(http: &Http, ctx: &Context<'_>) -> Report {
     }
 }
 
+/// Unit tests for this module.
 #[cfg(test)]
 mod tests;
