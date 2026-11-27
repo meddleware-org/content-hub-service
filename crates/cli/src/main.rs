@@ -116,6 +116,19 @@ fn https(k: &'static str, v: &str) -> Result<(), CliError> {
     }
 }
 
+/// Check that a value is the console's origin: `https://host[:port]` with no path, or (development only) an `http://` one for a local test.
+fn origin(k: &'static str, v: &str, dev: bool) -> Result<(), CliError> {
+    let plain_ok = dev && v.starts_with("http://");
+    if (v.starts_with("https://") || plain_ok)
+        && !v.contains(char::is_whitespace)
+        && !v[v.find("//").map_or(0, |i| i + 2)..].contains('/')
+    {
+        Ok(())
+    } else {
+        Err(CliError::Setting(format!("{k} must be an https origin without a path")))
+    }
+}
+
 /// A non-negative whole number from an environment variable (0 when unset).
 fn micros(k: &'static str) -> Result<i64, CliError> {
     match env(k) {
@@ -213,7 +226,7 @@ fn auth_config(mode: AdminAuth) -> Result<AuthConfig, CliError> {
     // Only OpenID Connect: no Access setting is read, so a deployment that has dropped them does not fail to start.
     if !mode.accepts_access() {
         let admin_origin = required("ADMIN_ORIGIN")?;
-        https("ADMIN_ORIGIN", &admin_origin)?;
+        origin("ADMIN_ORIGIN", &admin_origin, dev)?;
         return Ok(AuthConfig::without_access(admin_origin.trim_end_matches('/').to_owned()));
     }
     let team = required("ACCESS_TEAM_DOMAIN")?;
@@ -222,7 +235,7 @@ fn auth_config(mode: AdminAuth) -> Result<AuthConfig, CliError> {
     let team = team.trim_end_matches('/').to_owned();
     let audience = required("ACCESS_AUD")?;
     let admin_origin = required("ADMIN_ORIGIN")?;
-    https("ADMIN_ORIGIN", &admin_origin)?;
+    origin("ADMIN_ORIGIN", &admin_origin, dev)?;
     // The two development-only settings: a local key set instead of the remote one, and a fixed list of admins.
     let dev_jwks = env("ACCESS_JWKS_FILE");
     let dev_admins = env("CONTENT_HUB_DEV_ADMINS");
