@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+
+- Docs: one runbook per publishing platform (`docs/platforms/`), with the limits checked against each platform's current documentation on 2026-11-27.
 - Documentation pass: every file now has a header, every declaration (private items, fields and variants included) a doc comment, and the code,
   manifests, workflows and scripts carry line-level comments that say why. `missing_docs` and `clippy::missing_docs_in_private_items` are
   denied in the workspace lints, so a missing doc comment fails the build. No behaviour changed; the Rust diff is comment-only (compared with

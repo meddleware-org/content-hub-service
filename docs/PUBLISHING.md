@@ -23,6 +23,8 @@ re-renders and re-validates it from the current post.
 
 ## 2. Platforms
 
+Each platform has its own runbook in [platforms/](platforms/README.md): credentials, documented limits (checked 2026-11-27), the first live send and the failure modes.
+
 | Platform (code) | Target `external_ref` | Target `config` | Credential (`secret_ref` variable holds) | Least privilege |
 | --- | --- | --- | --- | --- |
 | Owned feed (`OWNED_FEED`) | — | — | none | — |
