@@ -378,6 +378,17 @@ async fn identify_by_access(auth: &Authenticator, headers: &HeaderMap) -> Result
     }
 }
 
+/// The 401 answer. When the OpenID Connect path is accepted it also names where a sign-in starts (`signIn`), so the console can send the person there instead of
+/// guessing; a process that accepts only Cloudflare Access says nothing extra (the edge does the sign-in).
+fn unauthorized(auth: &Authenticator) -> Response {
+    // The same body as every other 401, plus the hint only when this process has the routes.
+    let mut body = serde_json::json!({ "error": "unauthorized", "message": ApiError::Unauthorized.to_string() });
+    if auth.oidc().is_some() && auth.mode().accepts_session() {
+        body["signIn"] = serde_json::json!("/auth/login");
+    }
+    (axum::http::StatusCode::UNAUTHORIZED, axum::Json(body)).into_response()
+}
+
 /// The middleware for every `/api/v1` route.
 pub async fn require_admin<S: AuthState>(State(state): State<S>, mut req: Request, next: Next) -> Response {
     let auth = state.authenticator().clone();
@@ -389,7 +400,7 @@ pub async fn require_admin<S: AuthState>(State(state): State<S>, mut req: Reques
         Ok(Some(i)) => i,
         Ok(None) => match identify_by_access(&auth, req.headers()).await {
             Ok(Some(i)) => i,
-            Ok(None) => return ApiError::Unauthorized.into_response(),
+            Ok(None) => return unauthorized(&auth),
             Err(e) => return e.into_response(),
         },
         Err(e) => return e.into_response(),

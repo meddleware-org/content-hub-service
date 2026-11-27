@@ -336,7 +336,7 @@ checksum = "a6ef517f0926dd24a1582492c791b6a4818a4d94e789a334894aa15b0d12f55c"
 
 [[package]]
 name = "content-hub"
-version = "0.0.7"
+version = "0.0.8"
 dependencies = [
  "axum",
  "base64 0.23.1",
@@ -358,7 +358,7 @@ dependencies = [
 
 [[package]]
 name = "content-hub-api"
-version = "0.0.7"
+version = "0.0.8"
 dependencies = [
  "axum",
  "base64 0.23.1",
@@ -385,7 +385,7 @@ dependencies = [
 
 [[package]]
 name = "content-hub-core"
-version = "0.0.7"
+version = "0.0.8"
 dependencies = [
  "base64 0.23.1",
  "blake2",
@@ -402,7 +402,7 @@ dependencies = [
 
 [[package]]
 name = "content-hub-publish"
-version = "0.0.7"
+version = "0.0.8"
 dependencies = [
  "axum",
  "base64 0.23.1",
@@ -422,7 +422,7 @@ dependencies = [
 
 [[package]]
 name = "content-hub-store"
-version = "0.0.7"
+version = "0.0.8"
 dependencies = [
  "base64 0.23.1",
  "chrono",
@@ -440,7 +440,7 @@ dependencies = [
 
 [[package]]
 name = "content-hub-worker"
-version = "0.0.7"
+version = "0.0.8"
 dependencies = [
  "axum",
  "chrono",

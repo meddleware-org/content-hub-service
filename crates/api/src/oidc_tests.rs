@@ -531,7 +531,11 @@ async fn an_expired_session_is_refused() {
         call(&e, "GET", "/api/v1/me", &[("cookie", "__Host-hub-admin=forged".into())], None).await.status,
         StatusCode::UNAUTHORIZED
     );
-    assert_eq!(call(&e, "GET", "/api/v1/me", &[], None).await.status, StatusCode::UNAUTHORIZED);
+    let bare = call(&e, "GET", "/api/v1/me", &[], None).await;
+    assert_eq!(bare.status, StatusCode::UNAUTHORIZED);
+    // The 401 says where a sign-in starts, so the console can send the person there.
+    assert_eq!(bare.body["signIn"], "/auth/login");
+    assert_eq!(bare.body["error"], "unauthorized");
 }
 
 /// Each sign-in makes a new session identifier, so one planted before sign-in is worthless.
@@ -618,6 +622,10 @@ async fn the_modes_decide_which_paths_exist() {
     );
     let me = call(&e, "GET", "/api/v1/me", &[("cf-access-jwt-assertion", access_token(ACCESS_ADMIN))], None).await;
     assert_eq!((me.status, me.body["via"].as_str()), (StatusCode::OK, Some("access")));
+    // An Access-only process gives no sign-in hint: the edge does the sign-in.
+    let bare = call(&e, "GET", "/api/v1/me", &[], None).await;
+    assert_eq!(bare.status, StatusCode::UNAUTHORIZED);
+    assert!(bare.body.get("signIn").is_none());
     // both: the Access token works, a session works, and with both the session is the one used.
     let Some(e) = env(AdminAuth::Both).await else { return };
     let via_access =

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## [0.0.8] - 2026-11-27
+
+- A 401 from a process that accepts OpenID Connect sessions (`ADMIN_AUTH` `both` or `oidc`) names where a sign-in starts (`"signIn": "/auth/login"`), so the console can send the person there; an Access-only process answers as before. Used by content-hub-ui 0.0.14.
+
 ## [0.0.7] - 2026-11-27
 
 - **Sign-in through the platform's OpenID Connect provider (ADR-0016 stage 6).** New `ADMIN_AUTH` setting (`access` default, `both`, `oidc`). The admin process is a confidential
