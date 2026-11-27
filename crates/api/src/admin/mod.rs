@@ -22,7 +22,7 @@ use axum::{Extension, Json, Router, middleware};
 use serde::Serialize;
 use sqlx::PgPool;
 
-use crate::auth::{AuthState, Authenticator, Identity, require_admin};
+use crate::auth::{AuthState, Authenticator, Identity, Via, require_admin};
 use crate::error::{ApiError, ApiResult};
 use crate::{not_found, openapi, probe};
 
@@ -65,11 +65,13 @@ pub struct Me {
     pub subject: String,
     /// The name shown.
     pub display_name: String,
+    /// Which sign-in path was used: `access` (Cloudflare Access) or `oidc` (the platform's identity provider).
+    pub via: Via,
 }
 
 /// `GET /api/v1/me`: who the caller is.
 async fn me(Extension(id): Extension<Identity>) -> Json<Me> {
-    Json(Me { subject: id.subject, display_name: id.display_name })
+    Json(Me { subject: id.subject, display_name: id.display_name, via: id.via })
 }
 
 /// `GET /api/v1/openapi.json`: the admin API's OpenAPI document.
@@ -114,6 +116,8 @@ pub fn router(state: AdminState) -> Router {
         // The probes are outside the admin check, so the platform can reach them.
         .route("/healthz", get(probe::healthz))
         .route("/readyz", get(|State(s): State<AdminState>| async move { probe::readyz(&s.db).await }))
+        // The sign-in routes (404 unless the process has an OpenID Connect provider configured), outside the admin check.
+        .merge(crate::auth::routes::router::<AdminState>())
         .merge(api)
         .fallback(not_found)
         // A post body is at most 100,000 characters (about 400 KB of UTF-8); 1 MiB bounds every request.

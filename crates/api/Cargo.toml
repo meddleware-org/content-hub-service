@@ -39,6 +39,7 @@ sha2 = { workspace = true }
 thiserror = { workspace = true }
 url = { workspace = true }
 rustls = { workspace = true }
+meddleware-identity = { workspace = true }
 
 # Off by default, so a release build never contains the test signing key.
 [features]
@@ -49,3 +50,5 @@ testing = ["content-hub-store/testing"]
 [dev-dependencies]
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 content-hub-store = { workspace = true, features = ["testing"] }
+# The throw-away signer, for the sign-in tests against a fake provider.
+meddleware-identity = { workspace = true, features = ["testing"] }

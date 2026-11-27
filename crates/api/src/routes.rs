@@ -124,6 +124,19 @@ pub const ADMIN_ROUTES: &[Route] = &[
     r(Get, "/api/v1/audit", "audit log (cursor)"),
 ];
 
+/// The sign-in routes of the `admin` process (host hub.). They exist only when `ADMIN_AUTH` is `both` or `oidc`; otherwise each answers 404. Outside the `/api/v1` admin
+/// check, since the person calling is not signed in yet. `/auth/backchannel-logout` is called by the identity provider inside the cluster and is never routed by the Ingress.
+pub const AUTH_ROUTES: &[Route] = &[
+    r(Get, "/auth/login", "start a sign-in: redirect to the identity provider"),
+    r(Get, "/auth/callback", "finish a sign-in: exchange the code, verify the ID token, make the session"),
+    r(Post, "/auth/logout", "end the session; the answer names the provider's logout URL"),
+    r(
+        Post,
+        "/auth/backchannel-logout",
+        "the provider reports an ended session (signed logout token); cluster-internal only",
+    ),
+];
+
 /// The `worker` process (no ingress; the cluster scrapes and probes it), next to the probes.
 pub const WORKER_ROUTES: &[Route] = &[r(Get, "/metrics", "Prometheus metrics: queue, attempts, spend against caps")];
 
@@ -139,6 +152,7 @@ mod tests {
             .iter()
             .chain(PUBLIC_ROUTES)
             .chain(ADMIN_ROUTES)
+            .chain(AUTH_ROUTES)
             .chain(WORKER_ROUTES)
             .map(|r| (r.method, r.path))
             .collect();
@@ -157,6 +171,7 @@ mod tests {
                 .all(|r| r.path.starts_with("/public/v1/") || matches!(r.path, "/llms.txt" | "/robots.txt"))
         );
         assert!(ADMIN_ROUTES.iter().all(|r| r.path.starts_with("/api/v1/")));
+        assert!(AUTH_ROUTES.iter().all(|r| r.path.starts_with("/auth/")));
         assert!(PUBLIC_ROUTES.iter().all(|r| r.method == Method::Get), "the public process is read-only");
     }
 }

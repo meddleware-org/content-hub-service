@@ -102,6 +102,8 @@ own table and 404s the other's, and the contract job proves the published client
 | `GET /llms.txt`, `GET /robots.txt` | ✓ | 404 | `feeds.` (each frontend ships its own for its host) |
 | any write method on a public path | 405 | 404 | — |
 | `/api/v1/*` (38 routes, `routes.rs`) | 404 | ✓ | `hub.` only, behind Access |
+| `/auth/login`, `/auth/callback`, `/auth/logout` | 404 | ✓ when `ADMIN_AUTH` is `both` or `oidc` (else 404) | `hub.` only |
+| `POST /auth/backchannel-logout` | 404 | ✓ (same condition) | nowhere (cluster-internal, called by the identity provider) |
 | anything else | 404 | 404 | — |
 
 The ingress for `roadmap.` routes exactly `/public/v1/roadmap` and `/public/v1/snapshot` to `public`; `feeds.` routes only the feed paths. No
@@ -119,13 +121,29 @@ ingress routes `/api/` anywhere but `hub.`.
   API, cached briefly). Not a member → **403**. Keto unreachable → **503** (fail closed).
 - **CSRF:** every state-changing request needs the custom header `X-Content-Hub-Request` and an `Origin` equal to the
   admin host; otherwise **403**. A cross-site form cannot set the header.
-- **Session:** Access holds it; the UI holds no token. `GET /api/v1/me` returns the display name; logout is a link to
+- **Session (Access path):** Access holds it; the UI holds no token. `GET /api/v1/me` returns the display name and `via: "access"`; logout is a link to
   `/cdn-cgi/access/logout`. `hub.users` keeps only the subject, a display name and first/last-seen times.
 - **Development:** a dev verifier with a test JWKS behind an explicit environment flag, refused when the production
   configuration (team, AUD) is set.
-- **Later:** Access is replaced platform-wide by a self-hosted OIDC login. The hub then registers a confidential
-  client (created by the platform's setup Job, secrets passed only through the environment variables the identity
-  provider reads); only the `IdentityVerifier` implementation changes.
+
+### Sign-in through the platform's identity provider (stage 6 of the identity migration)
+
+Access is being replaced platform-wide by a self-hosted OpenID Connect provider (Keycloak; the platform's `docs/auth/CONSOLE_SIGNIN.md` is the design). The admin
+process is the **confidential client** (a backend for the browser console), so the browser never holds a token. `ADMIN_AUTH` chooses the accepted paths:
+`access` (default: nothing changes), `both` (a live session is preferred, the Access token still works) and `oidc` (only sessions; no `ACCESS_*` setting is read).
+
+- **`GET /auth/login`:** records a sign-in (hashes of the `state`, of a binding value, the `nonce` and the PKCE verifier; `hub.login_attempts`), sets the `__Host-hub-login`
+  cookie (`Secure`, `HttpOnly`, `SameSite=Lax`, ten minutes) and redirects to the provider with `acr_values=phr`, `code_challenge_method=S256`.
+- **`GET /auth/callback`:** consumes the state (it works once), checks that the binding cookie belongs to the browser that started the sign-in, that the response names the
+  configured issuer (RFC 9207) and carries no `error`, exchanges the code with the client secret and the verifier, verifies the ID token (`meddleware-identity`: signature
+  RS256/ES256/EdDSA against the provider's keys, issuer, audience and `azp`, the nonce, expiry, and `acr` = `phr`), asks the policy decision point whether `console:content-hub`
+  has the subject as a `member` (AuthZEN to OpenFGA; allow cached 30 s, deny 5 s; no answer is **503**, a refusal **403**), and only then makes the session: a new 256-bit
+  identifier (the cookie `__Host-hub-admin`), its SHA-256 in `hub.admin_sessions`, **12 hours** absolute and **1 hour** idle.
+- **Every `/api/v1` request** with a session cookie re-checks membership (cached as above), so removing a person's tuple ends their access within 30 seconds.
+- **`POST /auth/logout`** (CSRF-checked like every write) deletes the session, clears the cookie and answers `{"redirect": <the provider's end-session URL>}`.
+- **`POST /auth/backchannel-logout`** receives the provider's signed logout token (type, issuer, audience, `events`, no `nonce`, `jti` once) and deletes the named session, or all of
+  the person's. It is reachable inside the cluster only: the Ingress routes `/auth/login`, `/auth/callback` and `/auth/logout`, never this path.
+- **Failure behaviour:** the provider or the decision point unreachable → 503, never an allow; the provider is contacted at the first sign-in, so its outage does not stop the process.
 
 ## 5. API
 

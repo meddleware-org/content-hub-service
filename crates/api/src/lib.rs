@@ -40,3 +40,7 @@ mod tests;
 /// Handler tests against a real database (skipped when none is configured).
 #[cfg(test)]
 mod handler_tests;
+
+/// The OpenID Connect sign-in against a fake provider, over a real database.
+#[cfg(test)]
+mod oidc_tests;

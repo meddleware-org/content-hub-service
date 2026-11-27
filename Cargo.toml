@@ -8,7 +8,7 @@ members = ["crates/core", "crates/store", "crates/publish", "crates/api", "crate
 
 # Fields every crate inherits, so a release changes one version in one place.
 [workspace.package]
-version = "0.0.6"
+version = "0.0.7"
 edition = "2024"
 # The dependency graph's floor (sqlx 0.9 needs 1.94; checked in CI by the `msrv` job).
 rust-version = "1.94"
@@ -25,6 +25,10 @@ content-hub-store = { path = "crates/store" }
 content-hub-publish = { path = "crates/publish" }
 content-hub-api = { path = "crates/api" }
 content-hub-worker = { path = "crates/worker" }
+
+# The platform's identity contract in Rust (ID and logout tokens, discovery, PKCE, AuthZEN), shared with link-in-bio-service. A git tag, not crates.io (the crate is not
+# published), so the exact commit is fixed by Cargo.lock and deny.toml names this one repository as an allowed git source.
+meddleware-identity = { git = "https://github.com/meddleware-org/identity-contract", tag = "v0.0.6" }
 
 # PostgreSQL: SQLx with compile-time-checked queries (offline metadata in .sqlx/), rustls on the ring provider,
 # `verify-full` only. No MySQL/SQLite drivers and no `any` driver.

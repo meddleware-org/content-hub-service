@@ -336,7 +336,7 @@ checksum = "a6ef517f0926dd24a1582492c791b6a4818a4d94e789a334894aa15b0d12f55c"
 
 [[package]]
 name = "content-hub"
-version = "0.0.6"
+version = "0.0.7"
 dependencies = [
  "axum",
  "base64 0.23.1",
@@ -358,13 +358,14 @@ dependencies = [
 
 [[package]]
 name = "content-hub-api"
-version = "0.0.6"
+version = "0.0.7"
 dependencies = [
  "axum",
  "base64 0.23.1",
  "chrono",
  "content-hub-core",
  "content-hub-store",
+ "meddleware-identity",
  "reqwest",
  "ring",
  "rustls",
@@ -384,7 +385,7 @@ dependencies = [
 
 [[package]]
 name = "content-hub-core"
-version = "0.0.6"
+version = "0.0.7"
 dependencies = [
  "base64 0.23.1",
  "blake2",
@@ -401,7 +402,7 @@ dependencies = [
 
 [[package]]
 name = "content-hub-publish"
-version = "0.0.6"
+version = "0.0.7"
 dependencies = [
  "axum",
  "base64 0.23.1",
@@ -421,7 +422,7 @@ dependencies = [
 
 [[package]]
 name = "content-hub-store"
-version = "0.0.6"
+version = "0.0.7"
 dependencies = [
  "base64 0.23.1",
  "chrono",
@@ -439,7 +440,7 @@ dependencies = [
 
 [[package]]
 name = "content-hub-worker"
-version = "0.0.6"
+version = "0.0.7"
 dependencies = [
  "axum",
  "chrono",
@@ -1295,6 +1296,18 @@ checksum = "69b6441f590336821bb897fb28fc622898ccceb1d6cea3fde5ea86b090c4de98"
 dependencies = [
  "cfg-if",
  "digest 0.11.3",
+]
+
+[[package]]
+name = "meddleware-identity"
+version = "0.0.1"
+source = "git+https://github.com/meddleware-org/identity-contract?tag=v0.0.6#269332e38697e24af550c7da47a9dc6efa97851a"
+dependencies = [
+ "base64 0.23.1",
+ "ring",
+ "serde",
+ "serde_json",
+ "thiserror",
 ]
 
 [[package]]

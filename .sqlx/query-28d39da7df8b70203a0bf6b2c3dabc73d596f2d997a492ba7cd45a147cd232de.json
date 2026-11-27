@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM hub.admin_sessions WHERE subject = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "28d39da7df8b70203a0bf6b2c3dabc73d596f2d997a492ba7cd45a147cd232de"
+}

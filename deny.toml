@@ -38,7 +38,8 @@ wildcards = "deny"
 allow-wildcard-paths = true
 
 [sources]
-# crates.io only: no git dependencies or alternative registries.
+# crates.io, plus exactly one git source: the platform's identity contract crate (meddleware-identity, pinned by tag and Cargo.lock), which is not published to crates.io.
 unknown-registry = "deny"
 unknown-git = "deny"
 allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = ["https://github.com/meddleware-org/identity-contract"]

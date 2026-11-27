@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM hub.admin_sessions WHERE provider_sid = $1 AND provider_sid <> ''",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "060d685eb3182a8f8d3f917d806e22bfba6775d932237d2289d6c4efdfb357ff"
+}

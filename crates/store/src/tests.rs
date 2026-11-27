@@ -75,7 +75,7 @@ async fn migrations_apply_once_and_report_the_version() {
     let Some(db) = TestDb::create().await else { return };
     let pool = db.pool(&db.readonly, Access::ReadOnly);
     assert_eq!(migrate::readiness(&pool).await, Readiness::SchemaBehind(None));
-    assert_eq!(migrate::run(&db.owner).await.expect("first run"), vec![1]);
+    assert_eq!(migrate::run(&db.owner).await.expect("first run"), vec![1, 2]);
     assert_eq!(migrate::run(&db.owner).await.expect("second run"), Vec::<i64>::new());
     assert_eq!(migrate::schema_version(&pool).await.expect("version"), Some(SCHEMA_VERSION));
     assert_eq!(migrate::readiness(&pool).await, Readiness::Ready);
@@ -88,11 +88,11 @@ async fn racing_migrators_apply_each_migration_once() {
     let (a, b) = tokio::join!(migrate::run(&db.owner), migrate::run(&db.owner));
     let mut applied = a.expect("a").into_iter().chain(b.expect("b")).collect::<Vec<_>>();
     applied.sort();
-    assert_eq!(applied, vec![1], "exactly one of the two applied it");
+    assert_eq!(applied, vec![1, 2], "exactly one of the two applied each migration");
     let mut admin = db.admin().await;
     let rows: i64 =
         sqlx::query_scalar("SELECT count(*) FROM public._sqlx_migrations").fetch_one(&mut admin).await.expect("count");
-    assert_eq!(rows, 1);
+    assert_eq!(rows, 2);
 }
 
 /// A schema from a newer build is refused.
@@ -123,7 +123,7 @@ async fn an_edited_migration_is_refused() {
 #[tokio::test]
 async fn the_first_migration_creates_the_data_schema_when_provisioning_did_not() {
     let Some(db) = TestDb::create_variant(DataSchema::LeftToMigration).await else { return };
-    assert_eq!(migrate::run(&db.owner).await.expect("applies"), vec![1]);
+    assert_eq!(migrate::run(&db.owner).await.expect("applies"), vec![1, 2]);
     let mut owner = db.conn(&db.owner).await;
     let n: i64 = sqlx::query_scalar("SELECT count(*) FROM pg_tables WHERE schemaname = 'hub'")
         .fetch_one(&mut owner)
@@ -154,7 +154,17 @@ async fn the_readonly_role_reads_only_the_public_views() {
         ok(&mut r, &format!("SELECT * FROM public.{view}")).await;
     }
     ok(&mut r, "SELECT max(version) FROM public._sqlx_migrations").await;
-    for table in ["roadmap_phases", "roadmap_items", "posts", "platform_targets", "audit_log", "settings", "users"] {
+    for table in [
+        "roadmap_phases",
+        "roadmap_items",
+        "posts",
+        "platform_targets",
+        "audit_log",
+        "settings",
+        "users",
+        "admin_sessions",
+        "login_attempts",
+    ] {
         assert_eq!(
             code_of(&mut r, &format!("SELECT * FROM hub.{table}")).await.as_deref(),
             Some(PERMISSION_DENIED),
@@ -570,4 +580,121 @@ async fn the_feed_lists_only_posted_entries_on_enabled_feed_targets() {
         .await
         .expect("count");
     assert_eq!(n, 0);
+}
+
+// ── admin sign-in state ──────────────────────────────────────────────────────────────────────────────
+
+/// A sign-in in progress works once: the callback consumes the row, a second try and an unknown state find nothing.
+#[tokio::test]
+async fn a_login_attempt_is_consumed_by_its_first_use() {
+    use crate::repo::sessions as s;
+    let db = require_db!();
+    let mut w = db.conn(&db.writer).await;
+    s::begin_login(&mut w, "state-hash-0123456789", "binding-hash-012345", "nonce-0123456789abcdef", &"v".repeat(43))
+        .await
+        .expect("begin");
+    let first = s::take_login(&mut w, "state-hash-0123456789", 600).await.expect("take").expect("fresh");
+    assert_eq!(first.binding_hash, "binding-hash-012345");
+    assert_eq!(first.nonce, "nonce-0123456789abcdef");
+    assert!(s::take_login(&mut w, "state-hash-0123456789", 600).await.expect("again").is_none(), "works once");
+    assert!(s::take_login(&mut w, "never-made-0123456789", 600).await.expect("unknown").is_none());
+}
+
+/// A sign-in older than the limit is refused, and still consumed.
+#[tokio::test]
+async fn a_stale_login_attempt_is_refused_and_consumed() {
+    use crate::repo::sessions as s;
+    let db = require_db!();
+    let mut w = db.conn(&db.writer).await;
+    s::begin_login(&mut w, "state-hash-0123456789", "binding-hash-012345", "nonce-0123456789abcdef", &"v".repeat(43))
+        .await
+        .expect("begin");
+    ok(&mut w, "UPDATE hub.login_attempts SET created_at = now() - interval '11 minutes'").await;
+    assert!(
+        s::take_login(&mut w, "state-hash-0123456789", 600).await.expect("take").is_none(),
+        "older than 10 minutes"
+    );
+    let left: i64 =
+        sqlx::query_scalar("SELECT count(*) FROM hub.login_attempts").fetch_one(&mut w).await.expect("count");
+    assert_eq!(left, 0, "the stale row is gone too");
+}
+
+/// A session is found while inside both lifetimes; the idle limit counts from the last use, the absolute limit from sign-in.
+#[tokio::test]
+async fn a_session_lives_inside_its_idle_and_absolute_limits() {
+    use crate::repo::sessions as s;
+    let db = require_db!();
+    let mut w = db.conn(&db.writer).await;
+    s::create_session(&mut w, "session-hash-0123456", "sub-1", "sid-1", "meddler", "id.token.value")
+        .await
+        .expect("create");
+    let seen = s::use_session(&mut w, "session-hash-0123456", 3600, 43200).await.expect("use").expect("found");
+    assert_eq!(
+        (seen.subject.as_str(), seen.display_name.as_str(), seen.id_token.as_str()),
+        ("sub-1", "meddler", "id.token.value")
+    );
+    // Idle for two hours: gone under a one-hour idle limit, found again under a three-hour one.
+    ok(&mut w, "UPDATE hub.admin_sessions SET last_seen_at = now() - interval '2 hours'").await;
+    assert!(s::use_session(&mut w, "session-hash-0123456", 3600, 43200).await.expect("idle").is_none());
+    assert!(s::use_session(&mut w, "session-hash-0123456", 10800, 43200).await.expect("not idle").is_some());
+    // Signed in thirteen hours ago: past the twelve-hour absolute limit even though it was just used.
+    ok(&mut w, "UPDATE hub.admin_sessions SET created_at = now() - interval '13 hours'").await;
+    assert!(s::use_session(&mut w, "session-hash-0123456", 3600, 43200).await.expect("old").is_none());
+    assert!(s::use_session(&mut w, "unknown-hash-0123456", 3600, 43200).await.expect("unknown").is_none());
+}
+
+/// Sign-out and both back-channel forms end the right sessions and no others.
+#[tokio::test]
+async fn sign_out_and_back_channel_logout_end_the_right_sessions() {
+    use crate::repo::sessions as s;
+    let db = require_db!();
+    let mut w = db.conn(&db.writer).await;
+    for (hash, sub, sid) in [
+        ("hash-a-0123456789012", "sub-1", "sid-a"),
+        ("hash-b-0123456789012", "sub-1", "sid-b"),
+        ("hash-c-0123456789012", "sub-2", "sid-c"),
+        ("hash-d-0123456789012", "sub-3", ""),
+    ] {
+        s::create_session(&mut w, hash, sub, sid, "name", "tok").await.expect("create");
+    }
+    assert_eq!(s::end_by_provider_session(&mut w, "sid-a").await.expect("sid"), 1);
+    assert_eq!(
+        s::end_by_provider_session(&mut w, "").await.expect("empty sid names no session"),
+        0,
+        "an empty sid must not end sessions that carry none"
+    );
+    assert_eq!(s::end_by_subject(&mut w, "sub-1").await.expect("sub"), 1, "the rest of sub-1");
+    assert!(s::end_session(&mut w, "hash-c-0123456789012").await.expect("end").is_some());
+    assert!(s::end_session(&mut w, "hash-c-0123456789012").await.expect("again").is_none());
+    let left: i64 =
+        sqlx::query_scalar("SELECT count(*) FROM hub.admin_sessions").fetch_one(&mut w).await.expect("count");
+    assert_eq!(left, 1, "only sub-3's session is left");
+}
+
+/// The purge removes expired rows of both kinds and keeps live ones.
+#[tokio::test]
+async fn the_purge_removes_expired_rows_and_keeps_live_ones() {
+    use crate::repo::sessions as s;
+    let db = require_db!();
+    let mut w = db.conn(&db.writer).await;
+    s::begin_login(&mut w, "state-old-0123456789a", "binding-hash-012345", "nonce-0123456789abcdef", &"v".repeat(43))
+        .await
+        .expect("old login");
+    s::begin_login(&mut w, "state-new-0123456789a", "binding-hash-012345", "nonce-0123456789abcdef", &"v".repeat(43))
+        .await
+        .expect("new login");
+    ok(&mut w, "UPDATE hub.login_attempts SET created_at = now() - interval '1 hour' WHERE state_hash = 'state-old-0123456789a'").await;
+    s::create_session(&mut w, "hash-live-012345678", "sub-1", "", "name", "tok").await.expect("live");
+    s::create_session(&mut w, "hash-idle-012345678", "sub-2", "", "name", "tok").await.expect("idle");
+    ok(
+        &mut w,
+        "UPDATE hub.admin_sessions SET last_seen_at = now() - interval '2 hours' WHERE id_hash = 'hash-idle-012345678'",
+    )
+    .await;
+    assert_eq!(s::purge(&mut w, 600, 3600, 43200).await.expect("purge"), 2);
+    let logins: i64 =
+        sqlx::query_scalar("SELECT count(*) FROM hub.login_attempts").fetch_one(&mut w).await.expect("count");
+    let sessions: i64 =
+        sqlx::query_scalar("SELECT count(*) FROM hub.admin_sessions").fetch_one(&mut w).await.expect("count");
+    assert_eq!((logins, sessions), (1, 1));
 }

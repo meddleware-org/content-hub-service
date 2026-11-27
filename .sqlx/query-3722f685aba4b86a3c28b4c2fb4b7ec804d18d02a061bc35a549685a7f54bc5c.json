@@ -1,0 +1,18 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO hub.admin_sessions (id_hash, subject, provider_sid, display_name, id_token) VALUES ($1, $2, $3, $4, $5)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "3722f685aba4b86a3c28b4c2fb4b7ec804d18d02a061bc35a549685a7f54bc5c"
+}

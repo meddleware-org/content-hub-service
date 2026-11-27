@@ -8,11 +8,18 @@
 //!    denied. Not a member → 403. Keto unreachable → 503: it fails closed.
 //! 4. The operator's row is refreshed (`users`), and the identity is attached to the request.
 //!
+//! Two ways to sign in exist side by side while Cloudflare Access is being replaced (`ADMIN_AUTH`, [`AdminAuth`]): the Access token above, or a session made by
+//! the platform's OpenID Connect provider ([`oidc`], routes in [`routes`]), whose role check is the policy decision point instead of Keto.
+//!
 //! A development mode (static JWKS file, static admin list) exists for local work; the configuration loader refuses
 //! it in production (cli/main.rs).
 
 /// Token verification.
 pub mod jwt;
+/// Sign-in through the platform's OpenID Connect provider.
+pub mod oidc;
+/// The `/auth/*` routes of that sign-in.
+pub mod routes;
 
 use std::collections::{BTreeSet, HashMap};
 use std::sync::Arc;
@@ -77,6 +84,62 @@ pub struct AuthConfig {
     pub admin_origin: String,
 }
 
+impl AuthConfig {
+    /// A configuration with no Access path at all (`ADMIN_AUTH=oidc`): an empty key set and no roles, so no Access token could ever verify.
+    pub fn without_access(admin_origin: String) -> Self {
+        AuthConfig {
+            issuer: String::new(),
+            audience: String::new(),
+            jwks: JwksSource::Static(JwkSet { keys: Vec::new() }),
+            roles: RoleSource::Static(BTreeSet::new()),
+            admin_origin,
+        }
+    }
+}
+
+/// Which sign-in paths the admin process accepts (`ADMIN_AUTH`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AdminAuth {
+    /// Only the Cloudflare Access token (what ran before the migration; the safe rollback).
+    Access,
+    /// A session from the OpenID Connect provider is preferred; the Access token still works. The soak mode.
+    Both,
+    /// Only the OpenID Connect session; the Access token is ignored.
+    Oidc,
+}
+
+impl AdminAuth {
+    /// Read the setting's value (`access`, `both` or `oidc`).
+    pub fn parse(s: &str) -> Option<Self> {
+        match s {
+            "access" => Some(Self::Access),
+            "both" => Some(Self::Both),
+            "oidc" => Some(Self::Oidc),
+            _ => None,
+        }
+    }
+
+    /// Whether a session cookie is looked at.
+    pub fn accepts_session(self) -> bool {
+        self != Self::Access
+    }
+
+    /// Whether the Access token is looked at.
+    pub fn accepts_access(self) -> bool {
+        self != Self::Oidc
+    }
+}
+
+/// How the operator signed in (`GET /api/v1/me` shows it, so the soak week can see which path is in use).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, utoipa::ToSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum Via {
+    /// The Cloudflare Access token.
+    Access,
+    /// A session made by the OpenID Connect provider.
+    Oidc,
+}
+
 /// The authenticated operator, attached to the request.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Identity {
@@ -84,6 +147,8 @@ pub struct Identity {
     pub subject: String,
     /// The name shown.
     pub display_name: String,
+    /// Which sign-in path was used.
+    pub via: Via,
 }
 
 /// Verifies tokens and looks roles up, caching both.
@@ -98,6 +163,10 @@ pub struct Authenticator {
     last_refresh: Mutex<Option<Instant>>,
     /// Recent role answers by subject, with when they were made.
     roles: Mutex<HashMap<String, (bool, Instant)>>,
+    /// Which sign-in paths are accepted.
+    mode: AdminAuth,
+    /// The OpenID Connect sign-in, when configured (always present for `Both` and `Oidc`).
+    oidc: Option<Arc<oidc::Oidc>>,
 }
 
 /// The shape of Keto's answer to a check.
@@ -108,8 +177,16 @@ struct KetoCheck {
 }
 
 impl Authenticator {
-    /// Build an authenticator; its HTTP client has short timeouts and follows no redirects.
+    /// Build an authenticator that accepts only the Access token (`ADMIN_AUTH=access`); its HTTP client has short timeouts and follows no redirects.
     pub fn new(cfg: AuthConfig) -> Result<Arc<Self>, ApiError> {
+        Self::with_oidc(cfg, AdminAuth::Access, None)
+    }
+
+    /// Build an authenticator for a mode. `Both` and `Oidc` need the OpenID Connect sign-in; `Access` ignores it.
+    pub fn with_oidc(cfg: AuthConfig, mode: AdminAuth, oidc: Option<Arc<oidc::Oidc>>) -> Result<Arc<Self>, ApiError> {
+        if mode != AdminAuth::Access && oidc.is_none() {
+            return Err(ApiError::Internal);
+        }
         install_crypto_provider();
         let http = reqwest::Client::builder()
             .timeout(Duration::from_secs(5))
@@ -127,7 +204,19 @@ impl Authenticator {
             keys: RwLock::new(keys),
             last_refresh: Mutex::new(None),
             roles: Mutex::new(HashMap::new()),
+            mode,
+            oidc,
         }))
+    }
+
+    /// The accepted sign-in paths.
+    pub fn mode(&self) -> AdminAuth {
+        self.mode
+    }
+
+    /// The OpenID Connect sign-in, when this process has one.
+    pub fn oidc(&self) -> Option<&Arc<oidc::Oidc>> {
+        self.oidc.as_ref()
     }
 
     /// The admin host's origin.
@@ -184,7 +273,7 @@ impl Authenticator {
             tracing::info!(reason = %e, "access token refused");
             ApiError::Unauthorized
         })?;
-        Ok(Identity { subject: verified.subject, display_name: verified.display_name })
+        Ok(Identity { subject: verified.subject, display_name: verified.display_name, via: Via::Access })
     }
 
     /// Whether the subject holds the admin role (cached briefly; fails closed).
@@ -248,24 +337,63 @@ pub trait AuthState: Clone + Send + Sync + 'static {
     fn db(&self) -> &sqlx::PgPool;
 }
 
+/// The session cookie's value in the request's `Cookie` headers, if there is one.
+pub(crate) fn cookie_of<'a>(headers: &'a HeaderMap, name: &str) -> Option<&'a str> {
+    headers
+        .get_all(axum::http::header::COOKIE)
+        .iter()
+        .filter_map(|v| v.to_str().ok())
+        .find_map(|h| meddleware_identity::session::cookie_value(h, name))
+        .filter(|v| !v.is_empty())
+}
+
+/// The person behind a session cookie, when the OpenID Connect path is accepted and the browser sent a live session. Their role is the policy decision point's:
+/// not a member is 403, no answer is 503. An unknown or expired session is no session (`None`), so the other path or a 401 follows.
+async fn identify_by_session(
+    auth: &Authenticator,
+    db: &sqlx::PgPool,
+    headers: &HeaderMap,
+) -> Result<Option<Identity>, ApiError> {
+    let Some(o) = auth.oidc().filter(|_| auth.mode().accepts_session()) else { return Ok(None) };
+    let Some(id) = cookie_of(headers, o.cookie_name()) else { return Ok(None) };
+    let Some(found) = o.identify(db, id).await? else { return Ok(None) };
+    if o.is_member(&found.subject).await? {
+        Ok(Some(found))
+    } else {
+        Err(ApiError::Forbidden("not an admin of the content hub"))
+    }
+}
+
+/// The person behind a Cloudflare Access token, when that path is accepted and the header is present. Their role is Keto's.
+async fn identify_by_access(auth: &Authenticator, headers: &HeaderMap) -> Result<Option<Identity>, ApiError> {
+    if !auth.mode().accepts_access() {
+        return Ok(None);
+    }
+    let Some(token) = headers.get(ACCESS_JWT_HEADER).and_then(|v| v.to_str().ok()) else { return Ok(None) };
+    let found = auth.identify(token).await?;
+    if auth.is_admin(&found.subject).await? {
+        Ok(Some(found))
+    } else {
+        Err(ApiError::Forbidden("not an admin of the content hub"))
+    }
+}
+
 /// The middleware for every `/api/v1` route.
 pub async fn require_admin<S: AuthState>(State(state): State<S>, mut req: Request, next: Next) -> Response {
     let auth = state.authenticator().clone();
     if !csrf_ok(req.method(), req.headers(), auth.admin_origin()) {
         return ApiError::Forbidden("cross-site request refused").into_response();
     }
-    let Some(token) = req.headers().get(ACCESS_JWT_HEADER).and_then(|v| v.to_str().ok()).map(str::to_owned) else {
-        return ApiError::Unauthorized.into_response();
-    };
-    let identity = match auth.identify(&token).await {
-        Ok(i) => i,
+    // A session from the OpenID Connect provider is preferred; the Access token is the other path, used when no live session came with the request.
+    let identity = match identify_by_session(&auth, state.db(), req.headers()).await {
+        Ok(Some(i)) => i,
+        Ok(None) => match identify_by_access(&auth, req.headers()).await {
+            Ok(Some(i)) => i,
+            Ok(None) => return ApiError::Unauthorized.into_response(),
+            Err(e) => return e.into_response(),
+        },
         Err(e) => return e.into_response(),
     };
-    match auth.is_admin(&identity.subject).await {
-        Ok(true) => {}
-        Ok(false) => return ApiError::Forbidden("not an admin of the content hub").into_response(),
-        Err(e) => return e.into_response(),
-    }
     match state.db().acquire().await {
         Ok(mut conn) => {
             if let Err(e) =

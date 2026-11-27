@@ -25,7 +25,8 @@ use std::collections::BTreeSet;
 use std::sync::Arc;
 
 use clap::{Parser, Subcommand};
-use content_hub_api::auth::{self, AuthConfig, Authenticator, JwksSource, RoleSource};
+use content_hub_api::auth::oidc::{Oidc, OidcConfig};
+use content_hub_api::auth::{self, AdminAuth, AuthConfig, Authenticator, JwksSource, RoleSource};
 use content_hub_api::{admin, public};
 use content_hub_store::repo::seed::{SeedReport, apply_definitions, apply_seed};
 use content_hub_store::{Access, DatabaseSettings, migrate};
@@ -139,10 +140,82 @@ fn development() -> Result<bool, CliError> {
     }
 }
 
-/// The admin process's access configuration.
-fn auth_config() -> Result<AuthConfig, CliError> {
+/// Which sign-in paths the admin process accepts (`ADMIN_AUTH`: `access`, `both` or `oidc`; `access` when unset, which is what ran before the migration).
+fn admin_auth() -> Result<AdminAuth, CliError> {
+    match env("ADMIN_AUTH") {
+        None => Ok(AdminAuth::Access),
+        Some(v) => AdminAuth::parse(&v)
+            .ok_or_else(|| CliError::Setting(format!("ADMIN_AUTH {v:?} must be access, both or oidc"))),
+    }
+}
+
+/// The OpenID Connect sign-in's settings. The client secret is read from the file the Secret is mounted as, never from a variable.
+fn oidc_config(admin_origin: &str, dev: bool) -> Result<OidcConfig, CliError> {
+    let issuer = required("OIDC_ISSUER")?;
+    // Development may use an http provider; production never does.
+    if dev && issuer.starts_with("http://") && !issuer.contains(char::is_whitespace) {
+        // accepted for local tests only
+    } else {
+        https("OIDC_ISSUER", &issuer)?;
+    }
+    let secret_path = required("OIDC_CLIENT_SECRET_FILE")?;
+    let client_secret = std::fs::read_to_string(&secret_path)
+        .map_err(|_| CliError::Setting(format!("cannot read OIDC_CLIENT_SECRET_FILE {secret_path}")))?
+        .trim()
+        .to_owned();
+    if client_secret.len() < 20 {
+        return Err(CliError::Setting("OIDC_CLIENT_SECRET_FILE holds no usable secret".into()));
+    }
+    let authz_key = match env("AUTHZ_KEY_FILE") {
+        Some(path) => Some(
+            std::fs::read_to_string(&path)
+                .map_err(|_| CliError::Setting(format!("cannot read AUTHZ_KEY_FILE {path}")))?
+                .trim()
+                .to_owned(),
+        ),
+        None => None,
+    };
+    // The redirect URI is derived from the console's own origin, so it can never name another host.
+    let redirect_uri = format!("{admin_origin}/auth/callback");
+    let seconds = |k: &'static str, default: u64| -> Result<std::time::Duration, CliError> {
+        match env(k) {
+            None => Ok(std::time::Duration::from_secs(default)),
+            Some(v) => v
+                .parse::<u64>()
+                .ok()
+                .filter(|n| (60..=7 * 86_400).contains(n))
+                .map(std::time::Duration::from_secs)
+                .ok_or_else(|| CliError::Setting(format!("{k} must be 60 to 604800 seconds"))),
+        }
+    };
+    Ok(OidcConfig {
+        issuer: issuer.trim_end_matches('/').to_owned(),
+        client_id: required("OIDC_CLIENT_ID")?,
+        client_secret,
+        redirect_uri,
+        post_logout_uri: format!("{admin_origin}/"),
+        internal_base: env("OIDC_INTERNAL_BASE").filter(|v| !v.trim().is_empty()),
+        authz_base: required("AUTHZ_URL")?,
+        authz_key,
+        resource: env("OIDC_RESOURCE").unwrap_or_else(|| "content-hub".into()),
+        cookie_name: "__Host-hub-admin".into(),
+        binding_cookie_name: "__Host-hub-login".into(),
+        idle: seconds("SESSION_IDLE_SECS", 3600)?,
+        absolute: seconds("SESSION_ABSOLUTE_SECS", 12 * 3600)?,
+        allow_insecure: dev,
+    })
+}
+
+/// The admin process's access configuration (Cloudflare Access; not needed when only OpenID Connect is accepted).
+fn auth_config(mode: AdminAuth) -> Result<AuthConfig, CliError> {
     // Development relaxes only where the keys and roles come from; it never skips verification.
     let dev = development()?;
+    // Only OpenID Connect: no Access setting is read, so a deployment that has dropped them does not fail to start.
+    if !mode.accepts_access() {
+        let admin_origin = required("ADMIN_ORIGIN")?;
+        https("ADMIN_ORIGIN", &admin_origin)?;
+        return Ok(AuthConfig::without_access(admin_origin.trim_end_matches('/').to_owned()));
+    }
     let team = required("ACCESS_TEAM_DOMAIN")?;
     https("ACCESS_TEAM_DOMAIN", &team)?;
     // The issuer is compared as written in the token, so a trailing slash is removed once, here.
@@ -281,13 +354,36 @@ async fn run(cli: Cli) -> Result<(), CliError> {
         }
         // The admin process holds the writer role and the instance's spend ceilings.
         Command::Admin => {
-            let cfg = auth_config()?;
+            let mode = admin_auth()?;
+            let cfg = auth_config(mode)?;
             let ceilings = admin::Ceilings {
                 total_monthly_usd_micros: micros("SPEND_CEILING_TOTAL_USD_MICROS")?,
                 per_platform_monthly_usd_micros: micros("SPEND_CEILING_PER_PLATFORM_USD_MICROS")?,
             };
-            let auth = Authenticator::new(cfg).map_err(|_| CliError::Setting("cannot build the HTTP client".into()))?;
+            // The OpenID Connect sign-in exists only when a mode asks for it.
+            let oidc = if mode.accepts_session() {
+                let o = Oidc::new(oidc_config(&cfg.admin_origin, development()?)?)
+                    .map_err(|_| CliError::Setting("cannot build the sign-in client".into()))?;
+                Some(o)
+            } else {
+                None
+            };
+            let auth = Authenticator::with_oidc(cfg, mode, oidc.clone())
+                .map_err(|_| CliError::Setting("cannot build the authenticator".into()))?;
             let db = DatabaseSettings::from_env(env)?.lazy_pool(pool_size()?, Access::ReadWrite)?;
+            // Expired sign-ins and sessions are removed every ten minutes (they are never accepted after they expire; this only keeps the tables small).
+            if let Some(o) = oidc {
+                let pool = db.clone();
+                tokio::spawn(async move {
+                    loop {
+                        tokio::time::sleep(std::time::Duration::from_secs(600)).await;
+                        if let Err(e) = o.purge(&pool).await {
+                            tracing::warn!(error = %e, "purging expired sessions failed");
+                        }
+                    }
+                });
+            }
+            tracing::info!(?mode, "admin sign-in paths");
             serve(admin::router(admin::AdminState { db, auth, ceilings }), "admin").await
         }
         // The remaining subcommands have their own functions below.

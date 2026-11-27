@@ -30,6 +30,8 @@ pub mod posts;
 pub mod public;
 /// Seed import.
 pub mod seed;
+/// Admin sign-in state: logins in progress and sessions.
+pub mod sessions;
 /// Runtime settings.
 pub mod settings;
 /// Stored roadmap snapshots.

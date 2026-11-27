@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM hub.admin_sessions WHERE created_at <= now() - make_interval(secs => $2::bigint) OR last_seen_at <= now() - make_interval(secs => $1::bigint)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "68edfb59fb4c54082d3ba69d6357c541af40eb438f230693dbeeb2921fb1879a"
+}

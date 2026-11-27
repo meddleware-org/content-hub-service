@@ -1,0 +1,60 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM hub.login_attempts WHERE state_hash = $1\n           RETURNING binding_hash, nonce, verifier, (created_at > now() - make_interval(secs => $2::bigint)) AS \"fresh!\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "binding_hash",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "hub.login_attempts",
+            "name": "binding_hash"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "nonce",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "hub.login_attempts",
+            "name": "nonce"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "verifier",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "hub.login_attempts",
+            "name": "verifier"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "fresh!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      null
+    ]
+  },
+  "hash": "a3728b7a942643f1aaa195340c579ad8f7a21f374dbcc297f8873be35f74b4fe"
+}

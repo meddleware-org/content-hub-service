@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## [0.0.7] - 2026-11-27
+
+- **Sign-in through the platform's OpenID Connect provider (ADR-0016 stage 6).** New `ADMIN_AUTH` setting (`access` default, `both`, `oidc`). The admin process is a confidential
+  client: `/auth/login`, `/auth/callback`, `/auth/logout` and a cluster-internal `/auth/backchannel-logout`; authorization code with PKCE `S256`, the issuer check of RFC 9207,
+  an ID token verified by the shared `meddleware-identity` crate (the `phr` class required), membership decided by the policy decision point (AuthZEN to OpenFGA, allow cached 30 s,
+  deny 5 s, fail closed), a server-side session (`__Host-hub-admin`, 12 hours absolute, 1 hour idle, new identifier at every sign-in). `GET /api/v1/me` gains `via` (`access` or
+  `oidc`). Migration 0002 adds `hub.login_attempts` and `hub.admin_sessions` (hashes only). `ADMIN_AUTH=access` behaves exactly as 0.0.6.
+- `deny.toml` allows one git source: the identity contract repository (`meddleware-identity`, pinned by tag and `Cargo.lock`).
+
 ## [0.0.6] - 2026-11-27
 
 

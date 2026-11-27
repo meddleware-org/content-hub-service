@@ -71,7 +71,7 @@ scripts/check-docs.mjs --report content-hub-service` (in the workspace repositor
 | `content-hub-core` | none (pure: no async runtime, network or database) | enumerations, state machines, identifiers, platform definitions, seed validation, the text engine, delivery decisions, per-platform request and reply rules, the public-address rules |
 | `content-hub-store` | core | every SQL statement, migrations, connection settings, test harness |
 | `content-hub-publish` | core | the checked HTTP client; one sender per platform (I/O) |
-| `content-hub-api` | core, store | the two routers, route tables, OpenAPI, probes, Access JWT + Keto + CSRF |
+| `content-hub-api` | core, store | the two routers, route tables, OpenAPI, probes, sign-in (Access JWT + Keto, or an OIDC session + AuthZEN via `meddleware-identity`, `ADMIN_AUTH`), CSRF |
 | `content-hub-worker` | core, store, publish, api (probes) | claim, send, finish, janitor, metrics, alerts; `snapshot` (the export) |
 | `content-hub` (`crates/cli`) | all | subcommands, configuration from the environment, signals |
 

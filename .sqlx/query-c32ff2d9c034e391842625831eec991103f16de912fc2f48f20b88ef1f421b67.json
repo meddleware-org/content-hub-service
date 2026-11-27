@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM hub.login_attempts WHERE created_at <= now() - make_interval(secs => $1::bigint)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "c32ff2d9c034e391842625831eec991103f16de912fc2f48f20b88ef1f421b67"
+}

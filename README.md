@@ -4,7 +4,7 @@ The backend of the content hub: canonical posts, a public roadmap, and a publish
 platform and tracks every publication, automated or manual. One Rust binary with six subcommands, PostgreSQL for
 state. Design: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
-**Status (0.0.6):** the admin API (Cloudflare Access + Keto, CSRF, cursor pagination, audit log, spend ceilings),
+**Status (0.0.7):** the admin API (Cloudflare Access + Keto, CSRF, cursor pagination, audit log, spend ceilings),
 the public API (roadmap for people and for agents, JSON Feed and RSS, OpenAPI, `llms.txt`/`robots.txt`, ETag
 caching), migrations, the seed import, and the text engine (rendering, counting, segmentation, intent links) that
 validates every payload before it is queued, and the publishing worker (Discord, Telegram, Bluesky, Mastodon, the
@@ -38,10 +38,19 @@ snapshot (canonical JSON, a Sui personal-message signature, stored on Walrus). O
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
-| `ACCESS_TEAM_DOMAIN` | — (required) | `https://<team>.cloudflareaccess.com`: the JWT issuer; the JWKS is `{team}/cdn-cgi/access/certs` |
-| `ACCESS_AUD` | — (required) | the Access application's AUD tag |
+| `ADMIN_AUTH` | `access` | `access`, `both` or `oidc`: which sign-in paths are accepted (see docs/ARCHITECTURE.md §4). `oidc` reads no `ACCESS_*` setting |
+| `ACCESS_TEAM_DOMAIN` | — (required unless `ADMIN_AUTH=oidc`) | `https://<team>.cloudflareaccess.com`: the JWT issuer; the JWKS is `{team}/cdn-cgi/access/certs` |
+| `ACCESS_AUD` | — (required unless `ADMIN_AUTH=oidc`) | the Access application's AUD tag |
 | `ADMIN_ORIGIN` | — (required) | `https://` origin of the admin UI; state-changing requests must carry it as `Origin` |
-| `KETO_READ_URL` | — (required in production) | Keto's read API; the role is `ContentHub:admin#member@<sub>` |
+| `KETO_READ_URL` | — (required in production, unless `ADMIN_AUTH=oidc`) | Keto's read API; the role is `ContentHub:admin#member@<sub>` |
+| `OIDC_ISSUER` | — (required unless `ADMIN_AUTH=access`) | the provider's issuer URL, exactly as its discovery document names it (`https://`) |
+| `OIDC_CLIENT_ID` | — (same) | this console's client id at the provider |
+| `OIDC_CLIENT_SECRET_FILE` | — (same) | path of the file the client secret is mounted as (never an environment variable) |
+| `OIDC_INTERNAL_BASE` | unset | in-cluster base URL that replaces the issuer's public origin for the console's own calls (token exchange, keys), e.g. `http://keycloak.auth.svc.cluster.local:8080` |
+| `AUTHZ_URL` | — (same) | the policy decision point's store URL, e.g. `http://openfga.auth.svc.cluster.local:8080/stores/<id>`; membership is `console:<OIDC_RESOURCE>` `member` |
+| `AUTHZ_KEY_FILE` | unset | path of the file holding the decision point's pre-shared key (sent as a Bearer token) |
+| `OIDC_RESOURCE` | `content-hub` | the console resource id in the policy model |
+| `SESSION_IDLE_SECS`, `SESSION_ABSOLUTE_SECS` | `3600`, `43200` | session limits (60 to 604800) |
 | `SPEND_CEILING_TOTAL_USD_MICROS` | `0` | the instance ceiling for all external spend per month; runtime caps cannot exceed it |
 | `SPEND_CEILING_PER_PLATFORM_USD_MICROS` | `0` | the instance ceiling per platform per month |
 | `CONTENT_HUB_ENVIRONMENT` | `production` | `development` enables `ACCESS_JWKS_FILE` (a static JWKS) and `CONTENT_HUB_DEV_ADMINS` (comma-separated subjects instead of Keto); production refuses both |

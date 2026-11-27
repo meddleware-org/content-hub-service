@@ -9,7 +9,7 @@ use tower::ServiceExt;
 use crate::admin::{self, AdminState, Ceilings};
 use crate::auth::{AuthConfig, Authenticator, JwksSource, RoleSource};
 use crate::public::{self, PublicConfig, PublicState};
-use crate::routes::{ADMIN_ROUTES, PROBE_ROUTES, PUBLIC_ROUTES, Route};
+use crate::routes::{ADMIN_ROUTES, AUTH_ROUTES, PROBE_ROUTES, PUBLIC_ROUTES, Route};
 
 /// A pool that never reaches a database (port 1 refuses), for routes that must not need one.
 fn dead_pool() -> sqlx::PgPool {
@@ -85,6 +85,19 @@ async fn the_admin_router_serves_its_table_and_no_public_route() {
     }
     for route in PUBLIC_ROUTES {
         assert_eq!(status(&r, route).await, StatusCode::NOT_FOUND, "public route on admin: {route:?}");
+    }
+}
+
+/// Without a provider (`ADMIN_AUTH=access`, the default) the sign-in routes do not exist, and the public router never has them.
+#[tokio::test]
+async fn the_sign_in_routes_exist_only_when_a_provider_is_configured() {
+    let r = admin_router();
+    for route in AUTH_ROUTES {
+        assert_eq!(status(&r, route).await, StatusCode::NOT_FOUND, "{route:?} answered in access mode");
+    }
+    let p = public_router();
+    for route in AUTH_ROUTES {
+        assert_eq!(status(&p, route).await, StatusCode::NOT_FOUND, "{route:?} answered on the public process");
     }
 }
 
