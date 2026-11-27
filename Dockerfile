@@ -15,7 +15,7 @@
 # (`skopeo inspect --format '{{.Digest}}' docker://<image>:<tag>`).
 # =============================================================================
 
-FROM docker.io/library/rust:1-slim@sha256:4df2ae8cfdfebdfc13a65da7f253b73d68983dc0339f2719bc17a279c913b13d AS chef
+FROM docker.io/library/rust:1-slim@sha256:3b199fd6db7d709274df56565b8f4003f9e30d7bfcff9d53148c86053b7855e2 AS chef
 RUN cargo install cargo-chef --version 0.1.78 --locked
 WORKDIR /src
 
