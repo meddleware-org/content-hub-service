@@ -118,6 +118,7 @@ fn https(k: &'static str, v: &str) -> Result<(), CliError> {
 
 /// Check that a value is the console's origin: `https://host[:port]` with no path, or (development only) an `http://` one for a local test.
 fn origin(k: &'static str, v: &str, dev: bool) -> Result<(), CliError> {
+    // Plain http is for a local test only: development mode and a `http://` origin.
     let plain_ok = dev && v.starts_with("http://");
     if (v.starts_with("https://") || plain_ok)
         && !v.contains(char::is_whitespace)
@@ -164,6 +165,7 @@ fn admin_auth() -> Result<AdminAuth, CliError> {
 
 /// The OpenID Connect sign-in's settings. The client secret is read from the file the Secret is mounted as, never from a variable.
 fn oidc_config(admin_origin: &str, dev: bool) -> Result<OidcConfig, CliError> {
+    // The provider's issuer URL, exactly as its discovery document names itself.
     let issuer = required("OIDC_ISSUER")?;
     // Development may use an http provider; production never does.
     if dev && issuer.starts_with("http://") && !issuer.contains(char::is_whitespace) {
@@ -179,6 +181,7 @@ fn oidc_config(admin_origin: &str, dev: bool) -> Result<OidcConfig, CliError> {
     if client_secret.len() < 20 {
         return Err(CliError::Setting("OIDC_CLIENT_SECRET_FILE holds no usable secret".into()));
     }
+    // The decision point's pre-shared key is optional (a deployment whose network policy is the only control may omit it), and read from a file like the client secret.
     let authz_key = match env("AUTHZ_KEY_FILE") {
         Some(path) => Some(
             std::fs::read_to_string(&path)
@@ -189,7 +192,9 @@ fn oidc_config(admin_origin: &str, dev: bool) -> Result<OidcConfig, CliError> {
         None => None,
     };
     // The redirect URI is derived from the console's own origin, so it can never name another host.
+    // (the provider matches it exactly against the client's registered URI).
     let redirect_uri = format!("{admin_origin}/auth/callback");
+    // A session limit from the environment, between a minute and a week.
     let seconds = |k: &'static str, default: u64| -> Result<std::time::Duration, CliError> {
         match env(k) {
             None => Ok(std::time::Duration::from_secs(default)),
@@ -367,6 +372,7 @@ async fn run(cli: Cli) -> Result<(), CliError> {
         }
         // The admin process holds the writer role and the instance's spend ceilings.
         Command::Admin => {
+            // Which sign-in paths this process accepts; `access` when unset.
             let mode = admin_auth()?;
             let cfg = auth_config(mode)?;
             let ceilings = admin::Ceilings {
@@ -374,6 +380,7 @@ async fn run(cli: Cli) -> Result<(), CliError> {
                 per_platform_monthly_usd_micros: micros("SPEND_CEILING_PER_PLATFORM_USD_MICROS")?,
             };
             // The OpenID Connect sign-in exists only when a mode asks for it.
+            // Build the client for the provider only when a mode needs it (nothing is fetched until the first sign-in).
             let oidc = if mode.accepts_session() {
                 let o = Oidc::new(oidc_config(&cfg.admin_origin, development()?)?)
                     .map_err(|_| CliError::Setting("cannot build the sign-in client".into()))?;
@@ -396,6 +403,7 @@ async fn run(cli: Cli) -> Result<(), CliError> {
                     }
                 });
             }
+            // Say which paths are open, so the log shows the mode a rollout is really running.
             tracing::info!(?mode, "admin sign-in paths");
             serve(admin::router(admin::AdminState { db, auth, ceilings }), "admin").await
         }

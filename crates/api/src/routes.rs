@@ -124,6 +124,7 @@ pub const ADMIN_ROUTES: &[Route] = &[
     r(Get, "/api/v1/audit", "audit log (cursor)"),
 ];
 
+// The table is read by the route-exposure test of the platform workspace (post-bootstrap/content-hub/tests), which checks the Ingress against it.
 /// The sign-in routes of the `admin` process (host hub.). They exist only when `ADMIN_AUTH` is `both` or `oidc`; otherwise each answers 404. Outside the `/api/v1` admin
 /// check, since the person calling is not signed in yet. `/auth/backchannel-logout` is called by the identity provider inside the cluster and is never routed by the Ingress.
 pub const AUTH_ROUTES: &[Route] = &[
@@ -171,6 +172,7 @@ mod tests {
                 .all(|r| r.path.starts_with("/public/v1/") || matches!(r.path, "/llms.txt" | "/robots.txt"))
         );
         assert!(ADMIN_ROUTES.iter().all(|r| r.path.starts_with("/api/v1/")));
+        // The sign-in routes all live under /auth/, apart from the admin API's /api/v1/.
         assert!(AUTH_ROUTES.iter().all(|r| r.path.starts_with("/auth/")));
         assert!(PUBLIC_ROUTES.iter().all(|r| r.method == Method::Get), "the public process is read-only");
     }

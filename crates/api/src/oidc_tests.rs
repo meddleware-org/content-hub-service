@@ -417,6 +417,7 @@ async fn the_callback_refuses_unbound_reused_and_unvouched_responses() {
 async fn a_bad_id_token_makes_no_session() {
     let Some(e) = env(AdminAuth::Oidc).await else { return };
     let now = chrono::Utc::now().timestamp();
+    /// A change to a good ID token's claims.
     type Edit = Box<dyn Fn(&mut Value)>;
     let cases: Vec<(&str, Edit)> = vec![
         ("wrong nonce", Box::new(|c| c["nonce"] = json!("another-sign-in"))),

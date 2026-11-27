@@ -36,6 +36,7 @@ fn oidc_of<S: AuthState>(state: &S) -> Result<&std::sync::Arc<Oidc>, ApiError> {
 
 /// A response with a status, a `Cache-Control: no-store` header and these cookies (none of this is ever cached).
 fn plain(status: StatusCode, location: Option<&str>, cookies: &[&str], body: Body) -> Response {
+    // The status and the no-store header first, then the optional redirect target and each cookie in turn (a response may carry several Set-Cookie headers).
     let mut b = Response::builder().status(status).header(CACHE_CONTROL, "no-store");
     if let Some(l) = location {
         b = b.header(LOCATION, l);
@@ -43,12 +44,15 @@ fn plain(status: StatusCode, location: Option<&str>, cookies: &[&str], body: Bod
     for c in cookies {
         b = b.header(SET_COOKIE, *c);
     }
+    // Building fails only for an invalid header value, which cannot come from the values made here; answer 500 rather than panic.
     b.body(body).unwrap_or_else(|_| ApiError::Internal.into_response())
 }
 
 /// `GET /auth/login`.
 async fn login<S: AuthState>(State(state): State<S>) -> Result<Response, ApiError> {
+    // The 404 for a process without a provider comes from here.
     let o = oidc_of(&state)?;
+    // The provider's URL for this sign-in and the cookie that binds the callback to this browser.
     let (location, cookie) = o.begin(state.db()).await?;
     Ok(plain(StatusCode::FOUND, Some(&location), &[&cookie], Body::empty()))
 }
@@ -60,8 +64,10 @@ async fn callback<S: AuthState>(
     RawQuery(query): RawQuery,
 ) -> Result<Response, ApiError> {
     let o = oidc_of(&state)?;
+    // The raw query, decoded into pairs (the extractor features of this axum build do not include a typed form).
     let pairs: Vec<(String, String)> =
         url::form_urlencoded::parse(query.unwrap_or_default().as_bytes()).into_owned().collect();
+    // The browser's binding cookie, if it sent one.
     let binding = cookie_of(&headers, o.binding_cookie_name());
     let done = o.complete(state.db(), &pairs, binding).await?;
     // The console is at the root of this host; the session cookie is set and the sign-in cookie cleared in the same answer.
@@ -71,10 +77,13 @@ async fn callback<S: AuthState>(
 /// `POST /auth/logout`: the console calls it with `fetch` (so the CSRF header and `Origin` are present) and then opens the URL in the answer.
 async fn logout<S: AuthState>(State(state): State<S>, headers: HeaderMap) -> Result<Response, ApiError> {
     let o = oidc_of(&state)?;
+    // Signing out is a state change: it needs the custom header and the console's Origin, like every write.
     if !csrf_ok(&Method::POST, &headers, state.authenticator().admin_origin()) {
         return Err(ApiError::Forbidden("cross-site request refused"));
     }
+    // The session ends here; the provider's logout URL is returned for the console to open.
     let (redirect, clear) = o.sign_out(state.db(), cookie_of(&headers, o.cookie_name())).await?;
+    // JSON, because the console calls this with `fetch`.
     let body = json!({ "redirect": redirect }).to_string();
     let mut r = plain(StatusCode::OK, None, &[&clear], Body::from(body));
     r.headers_mut().insert(axum::http::header::CONTENT_TYPE, axum::http::HeaderValue::from_static("application/json"));
@@ -84,10 +93,12 @@ async fn logout<S: AuthState>(State(state): State<S>, headers: HeaderMap) -> Res
 /// `POST /auth/backchannel-logout`: the form field `logout_token` carries a signed token naming the session (or the person) that ended at the provider.
 async fn backchannel_logout<S: AuthState>(State(state): State<S>, body: Bytes) -> Result<Response, ApiError> {
     let o = oidc_of(&state)?;
+    // The provider posts a form with one field, `logout_token`.
     let token = url::form_urlencoded::parse(&body)
         .find(|(k, _)| k == "logout_token")
         .map(|(_, v)| v.into_owned())
         .ok_or_else(|| ApiError::BadRequest("logout_token is required".into()))?;
+    // Verify the token and end the named session(s); a refusal is a 400 (the specification's answer for a bad token).
     let ended = o.back_channel_logout(state.db(), &token).await?;
     tracing::info!(ended, "back-channel logout");
     Ok(plain(StatusCode::OK, None, &[], Body::empty()))
