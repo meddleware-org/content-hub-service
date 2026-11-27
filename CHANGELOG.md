@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## [0.0.6] - 2026-11-27
+
 
 - Docs: one runbook per publishing platform (`docs/platforms/`), with the limits checked against each platform's current documentation on 2026-11-27.
 - Documentation pass: every file now has a header, every declaration (private items, fields and variants included) a doc comment, and the code,
